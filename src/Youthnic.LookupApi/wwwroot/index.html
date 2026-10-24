@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Youthnic VMS & Customer Order Portal | Live Packing Hub</title>
+  <meta name="description" content="Live customer order tracking, item verification, and warehouse packing desk hub for Flipkart & Myntra VMS.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/png" href="/assets/flipkart_icon.png">
+</head>
+<body>
+
+  <!-- Background Ambient Glow -->
+  <div class="ambient-glow">
+    <div class="ambient-blob blob-1"></div>
+    <div class="ambient-blob blob-2"></div>
+    <div class="ambient-blob blob-3"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="brand-group">
+        <div class="brand-badge">Y</div>
+        <div>
+          <div class="brand-title">
+            Youthnic VMS <span class="brand-tag">Live Portal</span>
+          </div>
+          <div class="brand-desc">Flipkart & Myntra Warehouse Packing Station</div>
+        </div>
+      </a>
+
+      <div class="header-actions">
+        <div id="health-pill" class="status-pill">
+          <span id="health-dot" class="status-dot"></span>
+          <span id="health-text">Connecting...</span>
+        </div>
+        <a href="#download" class="btn btn-secondary btn-sm">Download Windows App</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container">
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-pill">
+        <span>⚡</span> Direct Forward Scan Integration • Live & Verified
+      </div>
+      <h1 class="hero-title">
+        Real-Time Order &amp; <span>Shipment Item Verification</span>
+      </h1>
+      <p class="hero-subtitle">
+        Look up orders across Flipkart and Myntra, view verified line-item SKUs and product images, and monitor warehouse packing stations in real-time.
+      </p>
+    </section>
+
+    <!-- Core Tracking & Customer Lookup Section -->
+    <section class="tracker-section" id="track">
+      <div class="tracker-card">
+        <div class="tracker-header">
+          <div class="tracker-title">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            Shipment Item Lookup
+          </div>
+
+          <!-- Marketplace Tabs -->
+          <div class="marketplaces-selector">
+            <button class="marketplace-btn active fk" data-marketplace="flipkart">
+              <img src="/assets/flipkart_logo.png" alt="Flipkart">
+              Flipkart
+            </button>
+            <button class="marketplace-btn myntra" data-marketplace="myntra">
+              <img src="/assets/myntra_logo.png" alt="Myntra">
+              Myntra
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Form -->
+        <form class="search-form" id="search-form">
+          <div class="search-input-group">
+            <div class="input-wrapper">
+              <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                <line x1="6" y1="8" x2="10" y2="8"></line>
+                <line x1="6" y1="12" x2="18" y2="12"></line>
+                <line x1="6" y1="16" x2="14" y2="16"></line>
+              </svg>
+              <input 
+                type="text" 
+                id="tracking-input" 
+                class="form-input" 
+                placeholder="Enter Flipkart Tracking ID / AWB (e.g. FMPP4335992170)..." 
+                autocomplete="off"
+                required>
+            </div>
+            <button type="submit" id="btn-search" class="btn btn-primary btn-search">
+              <span id="search-spinner" class="spinner"></span>
+              <span>Verify &amp; Track</span>
+            </button>
+          </div>
+
+          <!-- Sample Pills -->
+          <div class="sample-bar">
+            <span>Try sample shipment:</span>
+            <span class="sample-pill" data-sample="FMPP4335992170">FMPP4335992170 (BT203 Kurta)</span>
+            <span class="sample-pill" data-sample="FMPP4336040183">FMPP4336040183</span>
+          </div>
+        </form>
+
+        <!-- Results Area -->
+        <div id="results-area" class="results-area">
+          <div id="result-error" style="display: none;"></div>
+
+          <div id="result-success" class="result-card" style="display: none;">
+            <div class="result-header">
+              <div class="result-order-info">
+                <div id="result-awb" class="result-awb"></div>
+                <div id="result-seller" class="result-seller"></div>
+              </div>
+              <div id="result-status"></div>
+            </div>
+
+            <!-- Steps Timeline -->
+            <div class="tracking-steps">
+              <div class="step-item completed">
+                <div class="step-icon">✓</div>
+                <div class="step-text">
+                  <div class="step-label">Order Ingested</div>
+                  <div class="step-sub">Marketplace VMS</div>
+                </div>
+              </div>
+              <div class="step-item completed">
+                <div class="step-icon">✓</div>
+                <div class="step-text">
+                  <div class="step-label">Forward Scan Synced</div>
+                  <div class="step-sub">PostgreSQL Hub</div>
+                </div>
+              </div>
+              <div class="step-item completed">
+                <div class="step-icon">✓</div>
+                <div class="step-text">
+                  <div class="step-label">Packing Desk Verified</div>
+                  <div class="step-sub">SKU Matched</div>
+                </div>
+              </div>
+              <div class="step-item completed">
+                <div class="step-icon">✓</div>
+                <div class="step-text">
+                  <div class="step-label">Ready for Dispatch</div>
+                  <div class="step-sub">Verified Box</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Items -->
+            <div class="items-list-title">Verified Shipment Items</div>
+            <div id="items-container"></div>
+
+            <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <span style="font-size: 12px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px;">
+                <span style="color: var(--status-success);">🔒</span> Read-Only Verified against Forward Scan Database
+              </span>
+              <button class="btn btn-secondary btn-sm" onclick="window.print()">Print Packing Summary</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Live System Diagnostics -->
+    <section style="margin-bottom: 48px;">
+      <h2 class="section-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+        Live Warehouse &amp; Cloud Infrastructure
+      </h2>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">☁</div>
+          <div class="stat-label">Cloud Service</div>
+          <div class="stat-val">Render Singapore</div>
+          <div class="stat-detail">Starter Plan • Always-On • 512 MB RAM</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">🗄</div>
+          <div class="stat-label">Forward Scan Database</div>
+          <div id="stat-db" class="stat-val">Checking...</div>
+          <div class="stat-detail">Hostinger VPS 200.141.1.119:5433</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-label">Schema Mapping</div>
+          <div id="stat-mapping" class="stat-val">Checking...</div>
+          <div class="stat-detail">oms_orders &amp; sku_photos</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">⏱</div>
+          <div class="stat-label">Service Latency</div>
+          <div id="stat-latency" class="stat-val">-- ms</div>
+          <div class="stat-detail">Direct PostgreSQL query round-trip</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Desktop App Download Section -->
+    <section id="download" class="download-card">
+      <div class="download-content">
+        <span class="download-badge">Official Release v1.0.1</span>
+        <h3 class="download-title">Youthnic Packing Desk for Windows</h3>
+        <p class="download-desc">
+          Windows desktop software for packing desks. Embeds Flipkart and Myntra VMS, listens for barcode scans during packing, and displays live product photos and SKUs with zero manual interaction.
+        </p>
+        <div style="margin-top: 16px; font-size: 13px; color: var(--text-muted);">
+          <span>✓ Self-contained Inno Setup installer</span> &bull; 
+          <span>✓ Evergreen WebView2 integration</span> &bull; 
+          <span>✓ DPAPI secure local storage</span>
+        </div>
+      </div>
+
+      <div class="download-actions">
+        <a href="https://github.com/pawanshukla500/fkvms-app-youthnic-2/releases/download/v1.0.1/YouthnicPackingDeskSetup.exe" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Download Installer (.exe)
+        </a>
+        <a href="https://github.com/pawanshukla500/fkvms-app-youthnic-2" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
+          View on GitHub
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        &copy; 2026 Youthnic Logistics &bull; Ethnic Junction &bull; VB Export
+      </div>
+      <div class="footer-links">
+        <a href="/health" target="_blank" class="footer-link">API Health Check</a>
+        <a href="https://github.com/pawanshukla500/fkvms-app-youthnic-2/releases" target="_blank" rel="noopener" class="footer-link">All Releases</a>
+        <a href="https://github.com/pawanshukla500/fkvms-app-youthnic-2/blob/main/docs/DEPLOYMENT.md" target="_blank" rel="noopener" class="footer-link">Deployment Guide</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

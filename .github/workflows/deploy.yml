@@ -39,7 +39,7 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Sync secret env vars to Render
+      - name: Sync all env vars to Render (idempotent)
         if: steps.creds.outputs.configured == 'true'
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -55,6 +55,20 @@ jobs:
           payload = [
               {"key": "VMS_DATABASE_URL", "value": os.environ["VMS_DATABASE_URL"]},
               {"key": "LOOKUP_API_KEY", "value": os.environ["LOOKUP_API_KEY"]},
+              {"key": "VMS_DATABASE_READ_ONLY", "value": "true"},
+              {"key": "VMS_DB_QUERY_TIMEOUT_MS", "value": "2000"},
+              {"key": "VMS_LOOKUP_CACHE_SECONDS", "value": "60"},
+              {"key": "DOTNET_GCConserveMemory", "value": "1"},
+              {"key": "FS_SCHEMA_ORDERS", "value": "public"},
+              {"key": "FS_ORDERS_TABLE", "value": "oms_orders"},
+              {"key": "FS_COL_TRACKING", "value": "tracking_norm"},
+              {"key": "FS_COL_SELLER", "value": "channel_label"},
+              {"key": "FS_ITEMS_JSON_COLUMN", "value": "items_json"},
+              {"key": "FS_SKU_MAP_TABLE", "value": "sku_photos"},
+              {"key": "FS_COL_SKU", "value": "sku"},
+              {"key": "FS_COL_SKU_NAME", "value": "title"},
+              {"key": "FS_IMAGE_TABLE", "value": "sku_photos"},
+              {"key": "FS_COL_IMAGE_URL", "value": "image_url"}
           ]
           print(json.dumps(payload))
           PY
@@ -64,23 +78,6 @@ jobs:
             -H "Content-Type: application/json" \
             --data @env-vars.json
           rm -f env-vars.json
-
-      - name: Ensure non-secret env vars are set (idempotent)
-        if: steps.creds.outputs.configured == 'true'
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
-        run: |
-          curl -sS --fail-with-body -X PUT \
-            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/env-vars" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" \
-            -H "Content-Type: application/json" \
-            --data '[
-              {"key":"VMS_DATABASE_READ_ONLY","value":"true"},
-              {"key":"VMS_DB_QUERY_TIMEOUT_MS","value":"2000"},
-              {"key":"VMS_LOOKUP_CACHE_SECONDS","value":"60"},
-              {"key":"DOTNET_GCConserveMemory","value":"1"}
-            ]'
 
       - name: Trigger Render deploy
         if: steps.creds.outputs.configured == 'true'

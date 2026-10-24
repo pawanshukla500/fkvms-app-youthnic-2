@@ -1,0 +1,26 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore YouthnicPackingDesk.sln
+
+      - name: Build solution
+        run: dotnet build YouthnicPackingDesk.sln -c Release --no-restore
+
+      - name: Run unit tests
+        run: dotnet test YouthnicPackingDesk.sln -c Release --no-build --verbosity normal

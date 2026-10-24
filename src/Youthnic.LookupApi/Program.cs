@@ -34,10 +34,15 @@ builder.Services.AddSingleton<InspectService>();
 var app = builder.Build();
 var logger = app.Logger;
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 // --- API-key gate (LOOKUP_API_KEY): protects /api/* on non-loopback connections ---
+// Note: /api/track is public for the customer portal (protected by rate limiting)
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api"))
+    if (context.Request.Path.StartsWithSegments("/api") &&
+        !context.Request.Path.StartsWithSegments("/api/track"))
     {
         var isLoopback = IPAddress.IsLoopback(context.Connection.RemoteIpAddress ?? IPAddress.None);
         var verdict = ApiKeyGate.Evaluate(options.ApiKey, context.Request.Headers[ApiKeyGate.HeaderName], isLoopback);
@@ -179,6 +184,50 @@ app.MapGet("/api/inspect", async Task<IResult> (HttpContext http, InspectService
         return Results.Json(new { status = "forbidden", detail = "inspect is loopback-only" }, statusCode: 403);
     return Results.Json(await inspect.RunAsync(ct));
 });
+
+// --- Public Customer Tracking endpoint (rate-limited, no secret key required) ---
+var ipRateLimits = new System.Collections.Concurrent.ConcurrentDictionary<string, (int count, DateTime reset)>();
+
+app.MapGet("/api/track", async Task<IResult> (
+    HttpContext http,
+    string? marketplace,
+    string? trackingId,
+    string? seller,
+    LookupService lookup,
+    MappingRuntimeState state,
+    ILoggerFactory loggerFactory,
+    CancellationToken ct) =>
+{
+    var ip = http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    var now = DateTime.UtcNow;
+    var rate = ipRateLimits.AddOrUpdate(ip,
+        _ => (1, now.AddMinutes(1)),
+        (_, old) => old.reset < now ? (1, now.AddMinutes(1)) : (old.count + 1, old.reset));
+
+    if (rate.count > 60)
+        return Results.Json(new { status = "rate_limited", detail = "Too many tracking requests. Please try again shortly." }, statusCode: 429);
+
+    var mp = (marketplace ?? "flipkart").Trim().ToLowerInvariant();
+    if (mp.Length == 0 || mp.Length > 32)
+        return Results.Json(new LookupResponse { Status = "invalid_request", Detail = "marketplace is required (max 32 chars)" }, statusCode: 400);
+
+    var tid = (trackingId ?? string.Empty).Trim().ToUpperInvariant();
+    if (tid.Length == 0 || tid.Length > 64)
+        return Results.Json(new LookupResponse { Status = "invalid_request", Detail = "trackingId is required (max 64 chars)" }, statusCode: 400);
+
+    if (!state.IsReady || state.Mapping is null)
+    {
+        return Results.Json(
+            new LookupResponse { Status = "mapping_pending", Detail = state.PendingDetail },
+            statusCode: 503);
+    }
+
+    var result = await lookup.LookupAsync(state.Mapping, mp, tid, seller, ct);
+    return Results.Json(result);
+});
+
+// --- Portal route fallback ---
+app.MapFallbackToFile("index.html");
 
 await app.RunAsync();
 return 0;

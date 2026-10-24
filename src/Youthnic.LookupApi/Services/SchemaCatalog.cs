@@ -26,11 +26,13 @@ public sealed record TableInfo(string Schema, string Name)
     /// <summary>information_schema data_type per column name (e.g. "jsonb", "character varying"), when discovery captured it.</summary>
     public Dictionary<string, string> ColumnTypes { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>True when the named column exists and is a JSON/JSONB column.</summary>
+    /// <summary>True when the named column exists and is a JSON/JSONB column, or a text column storing JSON (e.g. items_json).</summary>
     public bool IsJsonColumn(string columnName)
         => ColumnTypes.TryGetValue(columnName, out var dataType)
         && (dataType.Equals("json", StringComparison.OrdinalIgnoreCase)
-            || dataType.Equals("jsonb", StringComparison.OrdinalIgnoreCase));
+            || dataType.Equals("jsonb", StringComparison.OrdinalIgnoreCase)
+            || ((dataType.Equals("text", StringComparison.OrdinalIgnoreCase) || dataType.StartsWith("char", StringComparison.OrdinalIgnoreCase))
+                && (columnName.EndsWith("_json", StringComparison.OrdinalIgnoreCase) || columnName.StartsWith("json_", StringComparison.OrdinalIgnoreCase))));
 
     /// <summary>Identifier as used in SQL: schema-qualified unless it is the default "public" schema.</summary>
     public string SqlIdentifier => string.Equals(Schema, "public", StringComparison.OrdinalIgnoreCase) ? Name : $"{Schema}.{Name}";

@@ -67,6 +67,15 @@ The installer is self-contained (no .NET runtime needed on packing PCs), checks 
 the WebView2 Evergreen Runtime, and can optionally auto-start the lookup API on the
 PC. Per-desk credentials/profiles are created on first launch — never bundled.
 
+## Hosted lookup API + automatic updates
+
+- The lookup API deploys to **Render** ("Flipkart VMS Server2.0", Starter plan $7/mo,
+  sized for 8–9 packing PCs) straight from `main` via GitHub Actions; secrets live in
+  GitHub Secrets and are pushed to Render by the workflow. Details: `DEPLOYMENT.md` §3a.
+- Packing PCs get app updates automatically: the desktop checks GitHub Releases and
+  shows an **Update** button; shipping an update is just pushing a `v*` tag (CI builds
+  the installer and attaches it to the release).
+
 ## Security notes
 
 - No marketplace credentials or Feed IDs exist in source, tests, or the installer;

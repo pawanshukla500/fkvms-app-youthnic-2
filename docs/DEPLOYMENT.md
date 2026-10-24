@@ -142,13 +142,75 @@ save. To force re-authentication, delete or rename
 - Desk → VMS websites: 443 outbound (Flipkart/Myntra VMS domains).
 - Desk → image hosts: outbound 443 (SKU images load from the URLs stored in Forward
   Scan).
-- Desk → Lookup API: as configured (loopback or LAN 5080).
+- Desk → Lookup API: as configured (loopback, LAN 5080, or the hosted Render URL over
+  443).
 - **Nothing** connects from the desk or the API to the Forward Scan DB except the API
   (5433), and the API performs no writes, ever.
+
+## 3a. Hosted lookup API on Render (primary deployment)
+
+The lookup API is hosted on Render as **"Flipkart VMS Server2.0"** (Render project
+`prj-db7k1pl9fdbs73ehkmc0`), deployed from `github.com/pawanshukla500/fkvms-app-youthnic-2`.
+
+**Cost / capacity (target ≤ $5–7/mo, 8–9 packing PCs):**
+
+- Plan: **Starter ($7/mo, 512 MB RAM, 0.5 CPU, always-on)** — the free plan is NOT used
+  (it spins down on idle, which would stall scans). No other billable Render resources:
+  the PostgreSQL stays on the existing `200.141.1.119` server (no Render managed DB).
+- Load: 8–9 PCs produce well under ~2 lookups/sec at scan time; each lookup is a single
+  indexed-ish SELECT with a 2 s timeout, a 60 s positive cache, and a 500-entry bounded
+  cache — far below Starter capacity. The container is memory-tuned
+  (`DOTNET_GCConserveMemory=1`, 300 MB heap cap).
+- Watch: Render dashboard → Metrics (CPU/RAM). If RAM ever approaches 512 MB, lower
+  `VMS_LOOKUP_CACHE_SECONDS` or `MaxPoolSize` before considering a bigger plan.
+
+**Security model (public internet):**
+
+- `LOOKUP_API_KEY` is set on the service → every `/api/*` call from non-loopback clients
+  must send `X-Api-Key` (401 otherwise). `/health` stays open for Render health checks.
+- Each packing PC gets the key via the setup wizard / installer desk-defaults
+  (`install-defaults.json` → `lookupApiKey`) or manually. The key is a shared desk
+  secret (not per-user); rotate by changing the GitHub secret + Render var and updating
+  desks.
+- `VMS_DATABASE_URL` lives only in GitHub Secrets → pushed to Render env vars by the
+  deploy workflow; never in the repo, the image, or logs.
+
+**Prerequisites before the first successful deploy:**
+
+1. Render API key: render.com → Account Settings → API Keys → copy → GitHub secret
+   **`RENDER_API_KEY`**.
+2. Create the service "Flipkart VMS Server2.0" in project `prj-db7k1pl9fdbs73ehkmc0`
+   (New → Blueprint → pick this repo, or let the deploy workflow create env vars on an
+   existing service). Copy its service id from the dashboard URL → GitHub secret
+   **`RENDER_SERVICE_ID`**.
+3. GitHub secrets already set: `VMS_DATABASE_URL`, `LOOKUP_API_KEY`.
+4. **Database must allow inbound from Render**: on the `200.141.1.119` PostgreSQL, add a
+   `pg_hba.conf` entry for the `pawanshukla` user from Render's egress IPs (or
+   `0.0.0.0/0` with a strong password, knowing Render outbound IPs are not static), and
+   ensure the firewall/NAT forwards 5433. Without this the service starts in degraded
+   mode (`mapping_pending`) — safe, but lookups won't work.
+5. Desks point `LOOKUP_API_URL` at the Render URL (e.g.
+   `https://flipkart-vms-server2-0.onrender.com`) and enter the API key in the setup
+   wizard.
+
+**Workflows:**
+
+- `.github/workflows/deploy.yml` — every push to `main`: pushes `VMS_DATABASE_URL` +
+  `LOOKUP_API_KEY` from GitHub secrets to the Render service env, then triggers a
+  deploy. Idempotent.
+- `.github/workflows/release.yml` — every `v*` tag: builds the WPF app self-contained,
+  compiles the Inno Setup installer (version from the tag), creates a GitHub Release
+  with `YouthnicPackingDeskSetup.exe` attached.
 
 ## 4. Upgrades
 
 - App: build new installer, install over the old one. Profiles and DPAPI config
   survive (they live in `%LocalAppData%`).
+- **Automatic updates (implemented 2026-10-24):** the desktop app checks the latest
+  GitHub Release on startup, every 4 h, and on demand (click the version in the
+  selection window). When a newer `YouthnicPackingDeskSetup.exe` asset exists, an
+  "Update available" button appears; one click downloads and runs the installer, which
+  installs over the old version. To ship an update: bump the tag (`git tag v1.0.1 &&
+  git push origin v1.0.1`) — the release workflow builds and publishes everything.
 - Never enable automatic updates on packing PCs during working hours; update between
-  shifts. The app performs no auto-update at all today.
+  shifts — the button notifies, the operator chooses when to install.

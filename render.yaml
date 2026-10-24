@@ -7,6 +7,7 @@ services:
     name: Flipkart VMS Server2.0
     runtime: docker
     plan: starter # $7/mo — never sleeps; do not downgrade to free.
+    numInstances: 1 # Fixed 1 instance; autoscaling disabled to strictly enforce $5-$7/mo budget.
     healthCheckPath: /health
     region: singapore
     envVars:
@@ -21,6 +22,8 @@ services:
       - key: VMS_DB_QUERY_TIMEOUT_MS
         value: "2000"
       - key: VMS_LOOKUP_CACHE_SECONDS
-        value: "60"
+        value: "180"
       - key: DOTNET_GCConserveMemory
         value: "1"
+      - key: DOTNET_gcServer
+        value: "0" # Workstation GC uses 60% less RAM than Server GC in small 512MB container.

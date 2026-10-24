@@ -37,7 +37,7 @@ public class LookupQueryBuilderItemsJsonTests
         Assert.Contains("o.\"items_json\"::jsonb", sql);
         Assert.Contains("AS it(item)", sql);
         Assert.Contains("(it.item ->> 'sku') AS sku", sql);
-        Assert.Contains("upper(o.\"tracking_norm\") = upper($1)", sql);
+        Assert.Contains("o.\"tracking_norm\" = upper($1)", sql);
         Assert.Contains("o.\"channel_label\" AS seller", sql);
     }
 
@@ -59,8 +59,8 @@ public class LookupQueryBuilderItemsJsonTests
 
         Assert.Contains("COALESCE(NULLIF(it.item ->> 'title', ''), m.\"title\") AS sku_name", sql);
         Assert.Contains("COALESCE(NULLIF(it.item ->> 'image_url', ''), im.\"image_url\") AS image_url", sql);
-        Assert.Contains("LEFT JOIN \"public\".\"sku_photos\" m ON m.\"sku\" = (it.item ->> 'sku')", sql);
-        Assert.Contains("LEFT JOIN \"public\".\"sku_photos\" im ON im.\"sku\" = (it.item ->> 'sku')", sql);
+        Assert.Contains("LEFT JOIN \"public\".\"sku_photos\" m ON (m.\"sku\" = upper((it.item ->> 'sku')) OR m.\"sku\" = (it.item ->> 'sku'))", sql);
+        Assert.Contains("LEFT JOIN \"public\".\"sku_photos\" im ON (im.\"sku\" = upper((it.item ->> 'sku')) OR im.\"sku\" = (it.item ->> 'sku'))", sql);
     }
 
     [Fact]

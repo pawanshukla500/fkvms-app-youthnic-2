@@ -31,7 +31,9 @@ public static class NpgsqlConnectionStringFactory
             ? ReadOnlySessionOption
             : builder.Options + " " + ReadOnlySessionOption;
         builder.CommandTimeout = Math.Clamp((queryTimeoutMs + 999) / 1000, 1, 30);
+        builder.MinPoolSize = 2;
         builder.MaxPoolSize = Math.Min(builder.MaxPoolSize, 10);
+        builder.ConnectionIdleLifetime = 30;
         builder.ApplicationName = "youthnic-lookup-api";
         return builder.ConnectionString;
     }

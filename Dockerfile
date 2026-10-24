@@ -15,9 +15,10 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy only the project file first for layer caching, then restore.
+# Copy only the project file first for layer caching, then restore WITH the
+# linux-x64 runtime identifier so the publish below can use --no-restore.
 COPY src/Youthnic.LookupApi/Youthnic.LookupApi.csproj src/Youthnic.LookupApi/
-RUN dotnet restore src/Youthnic.LookupApi/Youthnic.LookupApi.csproj
+RUN dotnet restore src/Youthnic.LookupApi/Youthnic.LookupApi.csproj -r linux-x64
 
 # Copy the full API source and publish framework-dependent for linux-x64.
 COPY src/Youthnic.LookupApi/ src/Youthnic.LookupApi/

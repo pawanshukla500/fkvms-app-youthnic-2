@@ -1,0 +1,10 @@
+# Shell scripts and the Dockerfile must keep LF line endings — CRLF breaks
+# the Linux container entrypoint (/bin/sh^M: bad interpreter).
+*.sh    text eol=lf
+Dockerfile text eol=lf
+
+# C#/XAML: let Git normalize to CRLF on Windows checkouts.
+*.cs    text
+*.xaml  text
+*.csproj text
+*.sln   text

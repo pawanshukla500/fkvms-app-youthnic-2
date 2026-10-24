@@ -3,9 +3,9 @@ namespace Youthnic.LookupApi.Options;
 public sealed record LookupApiOptions
 {
     public const int DefaultQueryTimeoutMs = 2000;
-    public const int DefaultCacheSeconds = 60;
+    public const int DefaultCacheSeconds = 180;
     public const string DefaultApiUrl = "http://127.0.0.1:5080";
-    public const int CacheSizeLimit = 500;
+    public const int CacheSizeLimit = 2000;
 
     /// <summary>Full Npgsql connection string (may be a postgres:// URI). Never log or return this.</summary>
     public string DatabaseUrl { get; init; } = string.Empty;

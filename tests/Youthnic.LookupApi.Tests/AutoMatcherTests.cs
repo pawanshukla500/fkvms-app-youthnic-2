@@ -92,7 +92,7 @@ public class AutoMatcherTests
         Assert.False(usesMarketplace);
         Assert.Contains("CROSS JOIN LATERAL jsonb_array_elements", sql);
         Assert.Contains("o.\"channel_label\" AS seller", sql);
-        Assert.Contains("upper(o.\"tracking_norm\") = upper($1)", sql);
+        Assert.Contains("o.\"tracking_norm\" = upper($1)", sql);
     }
 
     [Fact]

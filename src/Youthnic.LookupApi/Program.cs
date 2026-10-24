@@ -138,6 +138,7 @@ app.MapGet("/health", async Task<IResult> (DatabasePinger pinger, MappingRuntime
 });
 
 app.MapGet("/api/lookup", async Task<IResult> (
+    HttpContext http,
     string? marketplace,
     string? trackingId,
     string? seller,
@@ -146,6 +147,7 @@ app.MapGet("/api/lookup", async Task<IResult> (
     ILoggerFactory loggerFactory,
     CancellationToken ct) =>
 {
+    http.Response.Headers.CacheControl = "private, max-age=60";
     var log = loggerFactory.CreateLogger("LookupApi.Lookup");
 
     var mp = (marketplace ?? string.Empty).Trim().ToLowerInvariant();
@@ -223,6 +225,7 @@ app.MapGet("/api/track", async Task<IResult> (
     }
 
     var result = await lookup.LookupAsync(state.Mapping, mp, tid, seller, ct);
+    http.Response.Headers.CacheControl = "public, max-age=60";
     return Results.Json(result);
 });
 

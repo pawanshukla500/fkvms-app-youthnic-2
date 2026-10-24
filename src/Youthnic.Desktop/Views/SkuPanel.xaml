@@ -28,7 +28,7 @@
                     </Border>
                     <StackPanel VerticalAlignment="Center" Margin="8,0,0,0">
                         <TextBlock Text="YOUTHNIC" FontSize="12" FontWeight="Bold"
-                                   Foreground="{StaticResource TextPrimary}" LetterSpacing="1"/>
+                                   Foreground="{StaticResource TextPrimary}"/>
                         <TextBlock Text="Packing Station" FontSize="10" Foreground="{StaticResource TextMuted}"/>
                     </StackPanel>
                 </StackPanel>

@@ -40,16 +40,20 @@ public sealed record DeskOptions(
     bool SetupCompleted,
     string LookupApiKey = "")
 {
-    public const string DefaultLookupApiUrl = "http://127.0.0.1:5080";
+    public const string DefaultLookupApiUrl = "https://flipkart-vms-server2-0.onrender.com";
+    public const string DefaultLookupApiKey = "237c32350310eb6d69fed654499b55216f7be9f6ab54f537f503f799bb1c0cc1";
+    public const string DefaultFlipkartVmsUrl = "https://fkvms.synlabs.io/";
+    public const string DefaultFlipkartSeller = "ETHNIC JUNCTION - Flipkart";
+    public const string DefaultMyntraSeller = "ETHNIC JUNCTION - Myntra Youthnic";
 
     public static DeskOptions Empty { get; } = new(
         DeviceId: string.Empty,
         DeskName: string.Empty,
         LookupApiUrl: DefaultLookupApiUrl,
-        Flipkart: new MarketplaceConfig(string.Empty, string.Empty, string.Empty, string.Empty),
-        Myntra: new MarketplaceConfig(string.Empty, string.Empty, string.Empty, string.Empty),
+        Flipkart: new MarketplaceConfig(DefaultFlipkartVmsUrl, string.Empty, string.Empty, string.Empty, DefaultFlipkartSeller),
+        Myntra: new MarketplaceConfig(string.Empty, string.Empty, string.Empty, string.Empty, DefaultMyntraSeller),
         SetupCompleted: false,
-        LookupApiKey: string.Empty);
+        LookupApiKey: DefaultLookupApiKey);
 
     public MarketplaceConfig For(Marketplace marketplace) =>
         marketplace == Marketplace.Myntra ? Myntra : Flipkart;

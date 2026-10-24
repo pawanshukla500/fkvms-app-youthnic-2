@@ -110,10 +110,11 @@ begin
   DefaultsPage.Add('Suggested Flipkart seller account (ETHNIC JUNCTION - Flipkart)', False);
   DefaultsPage.Add('Suggested Myntra seller account (ETHNIC JUNCTION - Myntra Youthnic / VB EXPORT - Myntra PPMP — type one)', False);
   DefaultsPage.Add('Lookup API key (only when the hosted lookup server requires X-Api-Key)', False);
-  // The Myntra presets can't be offered as a dropdown with TInputQueryWizardPage,
-  // so both names are shown in the caption; the admin types one (or leaves it blank).
-  // Flipkart has a single known account — pre-filled, editable/clearable.
+  // Pre-fill production defaults for Youthnic hosted lookup service
+  DefaultsPage.Values[0] := 'https://flipkart-vms-server2-0.onrender.com';
   DefaultsPage.Values[1] := 'ETHNIC JUNCTION - Flipkart';
+  DefaultsPage.Values[2] := 'ETHNIC JUNCTION - Myntra Youthnic';
+  DefaultsPage.Values[3] := '237c32350310eb6d69fed654499b55216f7be9f6ab54f537f503f799bb1c0cc1';
 end;
 
 function DefaultsProvided(): Boolean;

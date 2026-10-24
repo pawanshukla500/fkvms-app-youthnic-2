@@ -38,15 +38,21 @@ public partial class SetupWizard : Window
                 : DeskOptions.DefaultLookupApiUrl;
         LookupKeyBox.Text = !string.IsNullOrWhiteSpace(options.LookupApiKey)
             ? options.LookupApiKey
-            : defaults.LookupApiKey ?? string.Empty;
+            : !string.IsNullOrWhiteSpace(defaults.LookupApiKey)
+                ? defaults.LookupApiKey!
+                : DeskOptions.DefaultLookupApiKey;
 
-        FkUrlBox.Text = options.Flipkart.VmsUrl;
+        FkUrlBox.Text = !string.IsNullOrWhiteSpace(options.Flipkart.VmsUrl)
+            ? options.Flipkart.VmsUrl
+            : DeskOptions.DefaultFlipkartVmsUrl;
         FkUserBox.Text = options.Flipkart.Username;
         FkPassBox.Password = options.Flipkart.Password;
         FkFeedBox.Text = options.Flipkart.FeedId;
         FkSellerBox.Text = !string.IsNullOrWhiteSpace(options.Flipkart.SellerAccount)
             ? options.Flipkart.SellerAccount
-            : defaults.FlipkartSeller ?? string.Empty;
+            : !string.IsNullOrWhiteSpace(defaults.FlipkartSeller)
+                ? defaults.FlipkartSeller!
+                : DeskOptions.DefaultFlipkartSeller;
 
         MyUrlBox.Text = options.Myntra.VmsUrl;
         MyUserBox.Text = options.Myntra.Username;
@@ -54,7 +60,9 @@ public partial class SetupWizard : Window
         MyFeedBox.Text = options.Myntra.FeedId;
         MySellerBox.Text = !string.IsNullOrWhiteSpace(options.Myntra.SellerAccount)
             ? options.Myntra.SellerAccount
-            : defaults.MyntraSeller ?? string.Empty;
+            : !string.IsNullOrWhiteSpace(defaults.MyntraSeller)
+                ? defaults.MyntraSeller!
+                : DeskOptions.DefaultMyntraSeller;
 
         ShowStep(0);
     }

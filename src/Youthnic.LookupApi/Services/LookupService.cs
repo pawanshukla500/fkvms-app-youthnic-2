@@ -33,12 +33,23 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
         }
 
         var sql = LookupQueryBuilder.Build(mapping, includeSellerFilter: sellerFilter is not null, out var usesMarketplace, out var usesSeller);
+        // Parameterized queries use the PostgreSQL extended query protocol (Parse/Bind/Execute),
+        // which rejects multiple commands separated by semicolons with error 42601.
+        // Strip the BEGIN/COMMIT transaction wrapper; read-only is already enforced on the connection and session.
+        var querySql = sql;
+        if (querySql.StartsWith("BEGIN READ ONLY;", StringComparison.OrdinalIgnoreCase))
+            querySql = querySql["BEGIN READ ONLY;".Length..].Trim();
+        if (querySql.EndsWith("; COMMIT;", StringComparison.OrdinalIgnoreCase))
+            querySql = querySql[..^"; COMMIT;".Length].Trim();
+        else if (querySql.EndsWith("COMMIT;", StringComparison.OrdinalIgnoreCase))
+            querySql = querySql[..^"COMMIT;".Length].Trim();
+
         var items = new List<LookupItem>();
         var index = new Dictionary<(string Sku, string? Seller), int>();
 
         await using var conn = await dataSource.OpenConnectionAsync(ct);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = sql;
+        cmd.CommandText = querySql;
         cmd.CommandTimeout = Math.Max(1, (options.QueryTimeoutMs + 999) / 1000);
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);

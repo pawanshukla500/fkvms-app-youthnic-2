@@ -13,11 +13,18 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="0,0,0,24">
-            <TextBlock Text="YOUTHNIC PACKING DESK" FontSize="22" FontWeight="Bold"
-                       Foreground="{StaticResource TextPrimary}"/>
-            <TextBlock Text="Choose the marketplace VMS to pack today" FontSize="13"
-                       Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+        <StackPanel Grid.Row="0" Margin="0,0,0,24" Orientation="Horizontal" VerticalAlignment="Center">
+            <Border Width="48" Height="48" CornerRadius="10" Background="White"
+                    BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Margin="0,0,16,0" Padding="4">
+                <Image Source="/Assets/youthnic_logo.png" Stretch="Uniform"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="YOUTHNIC PACKING DESK" FontSize="22" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimary}"/>
+                <TextBlock Text="Choose the marketplace VMS to pack today" FontSize="13"
+                           Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+            </StackPanel>
         </StackPanel>
 
         <UniformGrid Grid.Row="1" Columns="2" Rows="1">

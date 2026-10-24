@@ -14,8 +14,15 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Desk setup" FontSize="20" FontWeight="Bold"
-                   Foreground="{StaticResource TextPrimary}"/>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+            <Border Width="32" Height="32" CornerRadius="6" Background="White"
+                    BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Margin="0,0,10,0" Padding="2">
+                <Image Source="/Assets/youthnic_logo.png" Stretch="Uniform"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+            </Border>
+            <TextBlock Text="Desk setup" FontSize="20" FontWeight="Bold"
+                       Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+        </StackPanel>
         <TextBlock x:Name="StepTitle" Grid.Row="1" Text="Device" FontSize="13"
                    Foreground="{StaticResource TextMuted}" Margin="0,4,0,14"/>
 

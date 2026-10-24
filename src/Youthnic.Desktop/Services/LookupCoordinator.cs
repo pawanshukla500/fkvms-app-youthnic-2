@@ -8,6 +8,7 @@ public enum LookupOutcome
 {
     Ok,
     NotFound,
+    WrongMarketplace,
     MappingPending,
     Error
 }
@@ -17,7 +18,9 @@ public sealed record ScanLookupResult(
     string Awb,
     LookupOutcome Outcome,
     IReadOnlyList<LookupItem> Items,
-    string? Hint);
+    string? Hint,
+    string? DetectedMarketplace = null,
+    string? Message = null);
 
 /// <summary>
 /// Coordinates lookup calls triggered by AWB scans. Every scan gets a monotonically
@@ -146,6 +149,12 @@ public sealed class LookupCoordinator
                         seq, awb, LookupOutcome.Ok,
                         response.Items ?? Array.Empty<LookupItem>(),
                         response.Hint),
+                    LookupStatus.WrongMarketplace => new ScanLookupResult(
+                        seq, awb, LookupOutcome.WrongMarketplace,
+                        response.Items ?? Array.Empty<LookupItem>(),
+                        response.Hint,
+                        response.DetectedMarketplace,
+                        response.Message),
                     LookupStatus.NotFound => new ScanLookupResult(
                         seq, awb, LookupOutcome.NotFound,
                         response.Items ?? Array.Empty<LookupItem>(),

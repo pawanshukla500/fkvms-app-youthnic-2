@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="icon" type="image/png" href="/assets/flipkart_icon.png">
+  <link rel="icon" type="image/png" href="/assets/youthnic_logo.png">
 </head>
 <body>
 
@@ -24,12 +24,14 @@
   <header class="site-header">
     <div class="container header-inner">
       <a href="/" class="brand-group">
-        <div class="brand-badge">Y</div>
+        <div class="brand-badge" style="background: white; border: 1px solid var(--border-soft); display: flex; align-items: center; justify-content: center; padding: 4px;">
+          <img src="/assets/youthnic_logo.png" alt="Youthnic" style="width: 26px; height: 26px; object-fit: contain;">
+        </div>
         <div>
           <div class="brand-title">
             Youthnic VMS <span class="brand-tag">Live Portal</span>
           </div>
-          <div class="brand-desc">Flipkart & Myntra Warehouse Packing Station</div>
+          <div class="brand-desc">Flipkart &amp; Myntra Warehouse Packing Station</div>
         </div>
       </a>
 
@@ -49,7 +51,7 @@
     <!-- Hero Section -->
     <section class="hero">
       <div class="hero-pill">
-        <span>⚡</span> Direct Forward Scan Integration • Live & Verified
+        <span>⚡</span> Direct Forward Scan Integration • Live &amp; Verified
       </div>
       <h1 class="hero-title">
         Real-Time Order &amp; <span>Shipment Item Verification</span>
@@ -109,10 +111,13 @@
           </div>
 
           <!-- Sample Pills -->
-          <div class="sample-bar">
+          <div class="sample-bar" id="sample-bar">
             <span>Try sample shipment:</span>
-            <span class="sample-pill" data-sample="FMPP4335992170">FMPP4335992170 (BT203 Kurta)</span>
-            <span class="sample-pill" data-sample="FMPP4336040183">FMPP4336040183</span>
+            <span class="sample-pill active-fk" data-sample="FMPP4335992170">FMPP4335992170 (Single)</span>
+            <span class="sample-pill active-fk" data-sample="FMPC6634959956">FMPC6634959956 (Qty: 2)</span>
+            <span class="sample-pill active-fk" data-sample="FMPP4335933090">FMPP4335933090 (Qty: 2)</span>
+            <span class="sample-pill active-myntra" data-sample="MYSP1489001588" style="display: none;">MYSP1489001588 (Youthnic)</span>
+            <span class="sample-pill active-myntra" data-sample="MYEC1123208746" style="display: none;">MYEC1123208746 (PPMP)</span>
           </div>
         </form>
 

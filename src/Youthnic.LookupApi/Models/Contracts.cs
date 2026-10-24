@@ -13,11 +13,14 @@ public sealed record LookupItem
 
 public sealed class LookupResponse
 {
-    /// <summary>ok | not_found | lookup_error | mapping_pending | invalid_request</summary>
+    /// <summary>ok | not_found | wrong_marketplace | lookup_error | mapping_pending | invalid_request</summary>
     [JsonPropertyName("status")] public required string Status { get; init; }
 
     [JsonPropertyName("trackingId")] public string? TrackingId { get; init; }
     [JsonPropertyName("marketplace")] public string? Marketplace { get; init; }
+    [JsonPropertyName("detectedMarketplace")] public string? DetectedMarketplace { get; init; }
+    [JsonPropertyName("detectedSeller")] public string? DetectedSeller { get; init; }
+    [JsonPropertyName("message")] public string? Message { get; init; }
     [JsonPropertyName("items")] public List<LookupItem>? Items { get; init; }
     [JsonPropertyName("source")] public string? Source { get; init; }
     [JsonPropertyName("pendingSync")] public bool? PendingSync { get; init; }

@@ -2,6 +2,7 @@ using System.Net;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Youthnic.Desktop.Models;
 using Youthnic.Desktop.Services;
 
@@ -17,14 +18,35 @@ public partial class SkuPanel : UserControl
 
     private long _currentSeq;
 
+    private DispatcherTimer? _multiQtyTimer;
+    private int _multiQtyCountdown;
+
+    private DispatcherTimer? _wrongMpTimer;
+    private int _wrongMpCountdown;
+
     public SkuPanel()
     {
         InitializeComponent();
         ShowIdle();
     }
 
+    public void SetMarketplace(Marketplace marketplace)
+    {
+        if (marketplace == Marketplace.Flipkart)
+        {
+            MarketplaceText.Text = "Flipkart Desk";
+            MarketplaceLogo.Source = new BitmapImage(new Uri("pack://application:,,,/Assets/flipkart_icon.png"));
+        }
+        else
+        {
+            MarketplaceText.Text = "Myntra Desk";
+            MarketplaceLogo.Source = new BitmapImage(new Uri("pack://application:,,,/Assets/myntra_logo.png"));
+        }
+    }
+
     public void ShowIdle()
     {
+        DismissAllPopups();
         SetState(IdlePanel);
         SkuNameText.Text = string.Empty;
         SkuIdText.Text = string.Empty;
@@ -36,6 +58,7 @@ public partial class SkuPanel : UserControl
     public void ShowLoading(long seq, string awb)
     {
         _currentSeq = seq;
+        DismissAllPopups();
         SetState(LoadingPanel);
         LoadingText.Text = $"Looking up {awb}…";
         StatusText.Text = string.Empty;
@@ -49,6 +72,19 @@ public partial class SkuPanel : UserControl
         {
             case LookupOutcome.Ok when result.Items.Count > 0:
                 ShowProduct(result);
+                var totalUnits = result.Items.Sum(i => i.Quantity);
+                if (totalUnits > 1 || result.Items.Count > 1)
+                {
+                    ShowMultiQtyAlert(totalUnits);
+                }
+                break;
+
+            case LookupOutcome.WrongMarketplace:
+                ShowMessage("🚫", "Wrong Marketplace Package",
+                    FirstNonEmpty(result.Message, "This barcode was scanned at the wrong packing desk."),
+                    showRetry: false);
+                StatusText.Text = $"AWB {result.Awb}: {result.Message ?? "Wrong marketplace"}";
+                ShowWrongMarketplaceAlert(result);
                 break;
 
             case LookupOutcome.NotFound:
@@ -102,6 +138,86 @@ public partial class SkuPanel : UserControl
             .ToList();
         SetState(ImageMissingOverlay);
         StatusText.Text = $"AWB {result.Awb} — {result.Items.Count} item(s)";
+    }
+
+    /// <summary>
+    /// Shows auto-dismissing (2-3s) popup when tracking ID has quantity > 1 or multiple items.
+    /// </summary>
+    private void ShowMultiQtyAlert(int totalUnits)
+    {
+        _multiQtyTimer?.Stop();
+        _multiQtyCountdown = 3;
+        MultiQtyTitle.Text = $"{totalUnits} UNITS TO PACK";
+        MultiQtyDesc.Text = $"This shipment contains {totalUnits} items. Verify all {totalUnits} pieces before sealing.";
+        MultiQtyCountdownText.Text = $"Auto-closing in {_multiQtyCountdown}s…";
+        MultiQtyOverlay.Visibility = Visibility.Visible;
+
+        _multiQtyTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _multiQtyTimer.Tick += (s, e) =>
+        {
+            _multiQtyCountdown--;
+            if (_multiQtyCountdown <= 0)
+            {
+                _multiQtyTimer?.Stop();
+                MultiQtyOverlay.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                MultiQtyCountdownText.Text = $"Auto-closing in {_multiQtyCountdown}s…";
+            }
+        };
+        _multiQtyTimer.Start();
+    }
+
+    /// <summary>
+    /// Shows popup notification when a barcode from another marketplace is scanned.
+    /// </summary>
+    private void ShowWrongMarketplaceAlert(ScanLookupResult result)
+    {
+        _wrongMpTimer?.Stop();
+        _wrongMpCountdown = 4;
+        WrongMarketplaceDesc.Text = !string.IsNullOrWhiteSpace(result.Message)
+            ? result.Message
+            : "This barcode belongs to another marketplace! Do not pack at this desk.";
+        WrongMarketplaceCountdownText.Text = $"Alert closing in {_wrongMpCountdown}s…";
+        WrongMarketplaceOverlay.Visibility = Visibility.Visible;
+
+        _wrongMpTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _wrongMpTimer.Tick += (s, e) =>
+        {
+            _wrongMpCountdown--;
+            if (_wrongMpCountdown <= 0)
+            {
+                _wrongMpTimer?.Stop();
+                WrongMarketplaceOverlay.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                WrongMarketplaceCountdownText.Text = $"Alert closing in {_wrongMpCountdown}s…";
+            }
+        };
+        _wrongMpTimer.Start();
+    }
+
+    private void DismissAllPopups()
+    {
+        _multiQtyTimer?.Stop();
+        MultiQtyOverlay.Visibility = Visibility.Collapsed;
+
+        _wrongMpTimer?.Stop();
+        WrongMarketplaceOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void DismissMultiQty_Click(object sender, RoutedEventArgs e)
+    {
+        _multiQtyTimer?.Stop();
+        MultiQtyOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void DismissWrongMarketplace_Click(object sender, RoutedEventArgs e)
+    {
+        _wrongMpTimer?.Stop();
+        WrongMarketplaceOverlay.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>

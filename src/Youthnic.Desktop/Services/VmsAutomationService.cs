@@ -32,15 +32,15 @@ public sealed record VmsProbe(
 /// <summary>
 /// Drives the VMS SPA through login → feed connect → packing by probing the live DOM
 /// (≥500 ms throttle) and filling/clicking only what the operator has not already done.
-/// Session expiry (router back to #/login) re-runs login. It never touches the AWB
-/// value, never reloads mid-recording, never intercepts input, and never keeps state
-/// by timers alone — every action is guarded by a fresh DOM probe.
+/// Session expiry (router back to #/login) re-runs login automatically, enabling shifts
+/// to continue 4–5+ hours uninterrupted. It never touches the AWB value, never reloads
+/// mid-recording, never intercepts input, and guards every action by a fresh DOM probe.
 /// </summary>
 public sealed class VmsAutomationService : IDisposable
 {
-    public const int PollIntervalMs = 800;
-    public const int LoginFillToClickDelayMs = 1500;
-    public const int FeedFillToClickDelayMs = 1200;
+    public const int PollIntervalMs = 700;
+    public const int LoginFillToClickDelayMs = 800;
+    public const int FeedFillToClickDelayMs = 600;
 
     /// <summary>Ticks without any packing DOM before a disconnect is reported (Packing state).</summary>
     private const int MissingDomThreshold = 15;
@@ -57,6 +57,8 @@ public sealed class VmsAutomationService : IDisposable
 
     private int _missingDomTicks;
     private bool _disconnectReported;
+    private bool _connectClicked;
+    private int _connectCooldownTicks;
 
     public AutomationState State { get; private set; } = AutomationState.Starting;
 
@@ -167,7 +169,7 @@ public sealed class VmsAutomationService : IDisposable
 
     private async Task HandleStartingAsync(VmsProbe probe)
     {
-        if (probe.OnLogin && probe.Username && probe.LoginVisible)
+        if (probe.OnLogin)
         {
             AppLog.Info($"VmsAutomation: login page detected for {_marketplace}");
             SetState(AutomationState.LoggingIn);
@@ -180,12 +182,11 @@ public sealed class VmsAutomationService : IDisposable
             {
                 await EnterPackingAsync().ConfigureAwait(false);
             }
-            else if (probe.Feed)
+            else
             {
                 SetState(AutomationState.ConnectingFeed);
             }
         }
-        // Any other route: page is still loading; wait for the next probe.
     }
 
     private async Task HandleLoggingInAsync(VmsProbe probe, CancellationToken ct)
@@ -195,7 +196,6 @@ public sealed class VmsAutomationService : IDisposable
 
         if (!probe.OnLogin)
         {
-            // Operator already logged in manually (or our click just navigated away).
             if (probe.OnOperatorVms)
             {
                 SetState(probe.Awb && probe.RecordVisible ? AutomationState.Packing : AutomationState.ConnectingFeed);
@@ -208,8 +208,7 @@ public sealed class VmsAutomationService : IDisposable
             return;
         }
 
-        // Session expiry detection: router came back to #/login while we were packing.
-        if (probe.Username && probe.Password && probe.LoginVisible)
+        if (probe.Username && probe.Password)
         {
             AppLog.Debug($"VmsAutomation: filling credentials for '{config.Username}'");
             await EvalOnUiAsync(VmsScripts.FillByName("Username", config.Username)).ConfigureAwait(false);
@@ -234,7 +233,6 @@ public sealed class VmsAutomationService : IDisposable
 
         if (probe.OnLogin)
         {
-            // Session expired before connect.
             AppLog.Info("VmsAutomation: session expired, re-running login");
             SetState(AutomationState.LoggingIn);
             return;
@@ -242,7 +240,6 @@ public sealed class VmsAutomationService : IDisposable
 
         if (probe.Awb && probe.RecordVisible)
         {
-            // Connect already happened (by us or the operator).
             await EnterPackingAsync().ConfigureAwait(false);
             return;
         }
@@ -252,17 +249,27 @@ public sealed class VmsAutomationService : IDisposable
             if (!probe.FeedFilled)
             {
                 AppLog.Debug($"VmsAutomation: filling feed id for {_marketplace}");
-                await EvalOnUiAsync(VmsScripts.FillByPlaceholder("Feed Id", config.FeedId)).ConfigureAwait(false);
+                await EvalOnUiAsync(VmsScripts.FillByPlaceholder("Feed", config.FeedId)).ConfigureAwait(false);
                 await Task.Delay(FeedFillToClickDelayMs, ct).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
             }
 
-            if (probe.ConnectVisible)
+            if (!_connectClicked)
             {
                 var click = await EvalOnUiAsync(VmsScripts.ClickByName("Connect")).ConfigureAwait(false);
                 if (click?.Contains("clicked", StringComparison.Ordinal) == true)
                 {
-                    AppLog.Debug($"VmsAutomation: connect clicked for {_marketplace}");
+                    _connectClicked = true;
+                    _connectCooldownTicks = 0;
+                    AppLog.Debug($"VmsAutomation: connect clicked for {_marketplace}, awaiting camera stream");
+                }
+            }
+            else
+            {
+                _connectCooldownTicks++;
+                if (_connectCooldownTicks > 8)
+                {
+                    _connectClicked = false;
                 }
             }
             return;
@@ -275,7 +282,7 @@ public sealed class VmsAutomationService : IDisposable
     {
         if (probe.OnLogin)
         {
-            AppLog.Info("VmsAutomation: session expired during packing, re-running login");
+            AppLog.Info("VmsAutomation: session expired during packing, auto-relogging for extended shift");
             _missingDomTicks = 0;
             _disconnectReported = false;
             SetState(AutomationState.LoggingIn);
@@ -321,6 +328,7 @@ public sealed class VmsAutomationService : IDisposable
     {
         if (State == state) return;
         State = state;
+        _connectClicked = false;
         _dispatcher.BeginInvoke(() => StateChanged?.Invoke(state));
     }
 

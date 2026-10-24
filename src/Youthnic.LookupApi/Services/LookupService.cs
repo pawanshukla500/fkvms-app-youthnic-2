@@ -190,6 +190,15 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
                     }
                 }
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+            {
+                logger.LogDebug("cross-check timeout for {Marketplace}/{TrackingId}", marketplace, trackingId);
+                return Error(trackingId, marketplace, "database timeout");
+            }
             catch (Exception ex)
             {
                 logger.LogDebug(ex, "cross-check check failed for {TrackingId}", trackingId);

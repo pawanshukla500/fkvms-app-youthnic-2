@@ -35,12 +35,12 @@ public partial class SkuPanel : UserControl
         if (marketplace == Marketplace.Flipkart)
         {
             MarketplaceText.Text = "Flipkart Desk";
-            MarketplaceLogo.Source = new BitmapImage(new Uri("pack://application:,,,/Assets/flipkart_icon.png"));
+            MarketplaceLogo.Source = new BitmapImage(new Uri("pack://application:,,,/Youthnic.Desktop;component/Assets/flipkart_icon.png", UriKind.Absolute));
         }
         else
         {
             MarketplaceText.Text = "Myntra Desk";
-            MarketplaceLogo.Source = new BitmapImage(new Uri("pack://application:,,,/Assets/myntra_logo.png"));
+            MarketplaceLogo.Source = new BitmapImage(new Uri("pack://application:,,,/Youthnic.Desktop;component/Assets/myntra_logo.png", UriKind.Absolute));
         }
     }
 

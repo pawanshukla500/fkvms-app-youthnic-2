@@ -16,7 +16,7 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,24" Orientation="Horizontal" VerticalAlignment="Center">
             <Border Width="48" Height="48" CornerRadius="10" Background="White"
                     BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Margin="0,0,16,0" Padding="4">
-                <Image Source="/Assets/youthnic_logo.png" Stretch="Uniform"
+                <Image Source="pack://application:,,,/Youthnic.Desktop;component/Assets/youthnic_logo.png" Stretch="Uniform"
                        RenderOptions.BitmapScalingMode="HighQuality"/>
             </Border>
             <StackPanel VerticalAlignment="Center">
@@ -37,7 +37,7 @@
                 <StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <Border Width="64" Height="64" CornerRadius="14" Background="{StaticResource FlipkartBlue}">
-                            <Image Source="/Assets/flipkart_icon.png" Width="44" Height="44" Stretch="Uniform"
+                            <Image Source="pack://application:,,,/Youthnic.Desktop;component/Assets/flipkart_icon.png" Width="44" Height="44" Stretch="Uniform"
                                    RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Flipkart" FontSize="26" FontWeight="SemiBold"
@@ -57,7 +57,7 @@
                 <StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <Border Width="64" Height="64" CornerRadius="14" Background="{StaticResource MyntraPink}">
-                            <Image Source="/Assets/myntra_logo.png" MaxWidth="50" MaxHeight="50" Stretch="Uniform"
+                            <Image Source="pack://application:,,,/Youthnic.Desktop;component/Assets/myntra_logo.png" MaxWidth="50" MaxHeight="50" Stretch="Uniform"
                                    RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Myntra" FontSize="26" FontWeight="SemiBold"

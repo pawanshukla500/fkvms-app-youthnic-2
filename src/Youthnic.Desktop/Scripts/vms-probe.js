@@ -23,12 +23,17 @@
     return (str || '').toLowerCase().indexOf((needle || '').toLowerCase()) !== -1;
   }
   function findUsernameInput() {
+    var email = document.getElementById('email');
+    if (email && visible(email)) return email;
     var inputs = document.querySelectorAll('input:not([type="password"]):not([type="hidden"])');
     for (var i = 0; i < inputs.length; i++) {
       var el = inputs[i];
-      if (containsIgnoreCase(el.name, 'user') ||
+      if (containsIgnoreCase(el.name, 'email') ||
+          containsIgnoreCase(el.id, 'email') ||
+          containsIgnoreCase(el.name, 'user') ||
           containsIgnoreCase(el.id, 'user') ||
           containsIgnoreCase(el.getAttribute('placeholder'), 'user') ||
+          containsIgnoreCase(el.getAttribute('placeholder'), 'email') ||
           containsIgnoreCase(accessibleName(el), 'user')) {
         return el;
       }
@@ -40,6 +45,8 @@
     return null;
   }
   function findPasswordInput() {
+    var passById = document.getElementById('password');
+    if (passById && visible(passById)) return passById;
     var pass = document.querySelector('input[type="password"]');
     if (pass) return pass;
     var inputs = document.querySelectorAll('input');
@@ -66,6 +73,8 @@
     return null;
   }
   function findAwbInput() {
+    var byId = document.getElementById('awbInput');
+    if (byId) return byId;
     var inputs = document.querySelectorAll('input');
     for (var i = 0; i < inputs.length; i++) {
       var el = inputs[i];
@@ -95,6 +104,13 @@
   var loginBtn = findButton('Login');
   var connectBtn = findButton('Connect');
   var recordBtn = findButton('Record');
+  var stopBtn = findButton('Stop');
+  var disconnectBtn = findButton('Disconnect');
+
+  var isPacking = !!(awb && visible(awb)) ||
+                  !!(stopBtn && visible(stopBtn)) ||
+                  !!(disconnectBtn && visible(disconnectBtn)) ||
+                  !!(recordBtn && !recordBtn.disabled && visible(recordBtn));
 
   return JSON.stringify({
     url: location.href,
@@ -106,6 +122,7 @@
     feedFilled: feed ? !!feed.value : false,
     loginVisible: !!(loginBtn && visible(loginBtn)),
     connectVisible: !!(connectBtn && visible(connectBtn)),
-    recordVisible: !!(recordBtn && !recordBtn.disabled && visible(recordBtn))
+    recordVisible: isPacking,
+    isPacking: isPacking
   });
 })()

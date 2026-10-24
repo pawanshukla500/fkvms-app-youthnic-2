@@ -106,7 +106,7 @@ public class LookupQueryBuilderItemsJsonTests
         // No marketplace column → seller is $2.
         var sqlNoMp = LookupQueryBuilder.Build(JsonMapping(), includeSellerFilter: true, out _, out var usesSeller);
         Assert.True(usesSeller);
-        Assert.Contains("upper(o.\"channel_label\") = upper($2)", sqlNoMp);
+        Assert.Contains("upper(o.\"channel_label\") = ANY($2)", sqlNoMp);
         Assert.DoesNotContain("$3", sqlNoMp);
         Assert.DoesNotContain("ETHNIC", sqlNoMp);           // values never leak into SQL text
 
@@ -114,7 +114,7 @@ public class LookupQueryBuilderItemsJsonTests
         var sqlMp = LookupQueryBuilder.Build(JsonMapping() with { ColMarketplace = "marketplace" },
             includeSellerFilter: true, out _, out _);
         Assert.Contains("lower($2)", sqlMp);
-        Assert.Contains("upper($3)", sqlMp);
+        Assert.Contains("ANY($3)", sqlMp);
     }
 
     [Fact]

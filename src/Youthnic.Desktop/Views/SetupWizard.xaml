@@ -47,7 +47,7 @@
                 <StackPanel x:Name="FlipkartPage" Visibility="Collapsed">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Border Width="32" Height="32" CornerRadius="8" Background="{StaticResource FlipkartBlue}" Margin="0,0,10,0">
-                            <Image Source="/Assets/flipkart_icon.png" Width="22" Height="22" Stretch="Uniform"
+                            <Image Source="pack://application:,,,/Youthnic.Desktop;component/Assets/flipkart_icon.png" Width="22" Height="22" Stretch="Uniform"
                                    RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Flipkart VMS" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource FlipkartBlue}" VerticalAlignment="Center"/>
@@ -75,7 +75,7 @@
                 <StackPanel x:Name="MyntraPage" Visibility="Collapsed">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Border Width="32" Height="32" CornerRadius="8" Background="{StaticResource MyntraPink}" Margin="0,0,10,0">
-                            <Image Source="/Assets/myntra_logo.png" MaxWidth="26" MaxHeight="26" Stretch="Uniform"
+                            <Image Source="pack://application:,,,/Youthnic.Desktop;component/Assets/myntra_logo.png" MaxWidth="26" MaxHeight="26" Stretch="Uniform"
                                    RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Myntra VMS" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource MyntraPink}" VerticalAlignment="Center"/>

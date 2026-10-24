@@ -88,6 +88,7 @@ public partial class PackingWindow : Window
         try
         {
             await WebView.EnsureCoreWebView2Async(environment);
+            await WebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(ScanObserver.Script);
             AppLog.Info($"PackingWindow: navigating to {_marketplace} VMS");
             // Exactly one VMS is ever loaded: the selected marketplace's URL.
             WebView.Source = new Uri(_config.VmsUrl);

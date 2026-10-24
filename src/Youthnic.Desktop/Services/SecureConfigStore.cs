@@ -16,6 +16,7 @@ namespace Youthnic.Desktop.Services;
 public static class SecureConfigStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
+    private static readonly JsonSerializerOptions ReadableJsonOptions = new() { WriteIndented = true };
 
     private static string RootDir =>
         Path.Combine(
@@ -27,40 +28,83 @@ public static class SecureConfigStore
     private static string ConfigFilePath(string deviceId) =>
         Path.Combine(RootDir, $"config-{deviceId}.dat");
 
+    private static string LocalConfigFile => Path.Combine(RootDir, "desk-config.json");
+
     /// <summary>Reads the stored options, or null if never configured / unreadable / corrupt.</summary>
     public static DeskOptions? Load()
     {
+        // 1. Try loading from DPAPI-encrypted file
         try
         {
             var deviceId = ReadDeviceMarker();
-            if (string.IsNullOrWhiteSpace(deviceId)) return null;
-
-            var path = ConfigFilePath(deviceId);
-            if (!File.Exists(path)) return null;
-
-            var encrypted = File.ReadAllBytes(path);
-            var plain = ProtectedData.Unprotect(encrypted, optionalEntropy: null, DataProtectionScope.CurrentUser);
-            var options = JsonSerializer.Deserialize<DeskOptions>(plain, JsonOptions);
-            return options is null or { SetupCompleted: false } ? null : options;
+            if (!string.IsNullOrWhiteSpace(deviceId))
+            {
+                var path = ConfigFilePath(deviceId);
+                if (File.Exists(path))
+                {
+                    var encrypted = File.ReadAllBytes(path);
+                    var plain = ProtectedData.Unprotect(encrypted, optionalEntropy: null, DataProtectionScope.CurrentUser);
+                    var options = JsonSerializer.Deserialize<DeskOptions>(plain, JsonOptions);
+                    if (options is { SetupCompleted: true }) return options;
+                }
+            }
         }
         catch (Exception ex)
         {
-            AppLog.Error("SecureConfigStore: load failed; treating as not configured", ex);
-            return null;
+            AppLog.Debug("SecureConfigStore: DPAPI load skipped: " + ex.Message);
         }
+
+        // 2. Fallback to readable local config file if DPAPI load was empty
+        try
+        {
+            if (File.Exists(LocalConfigFile))
+            {
+                var text = File.ReadAllText(LocalConfigFile, Encoding.UTF8);
+                var options = JsonSerializer.Deserialize<DeskOptions>(text, ReadableJsonOptions);
+                if (options is { SetupCompleted: true }) return options;
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("SecureConfigStore: local config file read failed", ex);
+        }
+
+        return null;
     }
 
     public static void Save(DeskOptions options)
     {
-        if (string.IsNullOrWhiteSpace(options.DeviceId))
-            throw new ArgumentException("DeviceId must not be empty.", nameof(options));
+        var deviceId = string.IsNullOrWhiteSpace(options.DeviceId)
+            ? Guid.NewGuid().ToString("N")
+            : options.DeviceId.Trim();
+
+        var toSave = options with { DeviceId = deviceId };
 
         Directory.CreateDirectory(RootDir);
-        File.WriteAllText(DeviceMarkerFile, options.DeviceId, Encoding.UTF8);
+        File.WriteAllText(DeviceMarkerFile, deviceId, Encoding.UTF8);
 
-        var plain = JsonSerializer.SerializeToUtf8Bytes(options, JsonOptions);
-        var encrypted = ProtectedData.Protect(plain, optionalEntropy: null, DataProtectionScope.CurrentUser);
-        File.WriteAllBytes(ConfigFilePath(options.DeviceId), encrypted);
+        // Save DPAPI encrypted blob
+        try
+        {
+            var plain = JsonSerializer.SerializeToUtf8Bytes(toSave, JsonOptions);
+            var encrypted = ProtectedData.Protect(plain, optionalEntropy: null, DataProtectionScope.CurrentUser);
+            File.WriteAllBytes(ConfigFilePath(deviceId), encrypted);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("SecureConfigStore: DPAPI save failed", ex);
+        }
+
+        // Save plain JSON local configuration for persistence & recovery across PC reboots
+        try
+        {
+            var readableJson = JsonSerializer.Serialize(toSave, ReadableJsonOptions);
+            File.WriteAllText(LocalConfigFile, readableJson, Encoding.UTF8);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("SecureConfigStore: local config save failed", ex);
+        }
     }
 
     private static string? ReadDeviceMarker()

@@ -175,36 +175,18 @@ The lookup API is hosted on Render as **"Flipkart VMS Server2.0"** (Render proje
 - `VMS_DATABASE_URL` lives only in GitHub Secrets → pushed to Render env vars by the
   deploy workflow; never in the repo, the image, or logs.
 
-**As built (2026-10-24):**
+**As built & verified live (2026-10-24):**
 
-- Service **"Flipkart VMS Server2.0"** exists in the VB EXPORT workspace:
+- Service **"Flipkart VMS Server2.0"** is live in the VB EXPORT workspace:
   id `srv-dbe7le4s728c73b9sbj0`, URL `https://flipkart-vms-server2-0.onrender.com`,
-  plan starter ($7/mo), region singapore, health check `/health`, **auto-deploy on
-  push to `main` is enabled**.
-- Env vars set on the service: `VMS_DATABASE_URL` + `LOOKUP_API_KEY` (**secret**),
-  plus the non-secret tuning vars. GitHub secrets configured: `VMS_DATABASE_URL`,
-  `LOOKUP_API_KEY`, `RENDER_SERVICE_ID`.
-- Live verification: `/health` → 200 (`database:"unavailable"` until item 4 below);
-  `/api/lookup` without key → **401**; with key → 503 `mapping_pending` (safe
-  degraded mode — no guessed data).
-- `deploy.yml` syncs env vars from GitHub secrets on every push and **skips cleanly
-  if `RENDER_API_KEY` is not set** (auto-deploy already handles the rollout).
-
-**Prerequisites / remaining manual steps:**
-
-1. **Database must allow inbound from Render** (the one blocker for live lookups):
-   on the `200.141.1.119` PostgreSQL, add a `pg_hba.conf` entry for the
-   `pawanshukla` user accepting Render's outbound connections (Render egress IPs are
-   not static; `0.0.0.0/0` + a strong password + the read-only enforcement in this
-   API is the practical option), reload PostgreSQL, and ensure the firewall/NAT
-   forwards 5433. Until then the service runs safely in `mapping_pending`.
-2. *(Optional, only for the env-sync workflow)* `RENDER_API_KEY`:
-   render.com → Account Settings → API Keys → New API Key → repo secret
-   `RENDER_API_KEY`. Without it, pushes still auto-deploy via Render's GitHub
-   integration; only the env-var sync step is skipped.
-3. Desks point `LOOKUP_API_URL` at `https://flipkart-vms-server2-0.onrender.com`
-   and enter the API key in the setup wizard (or via the installer's desk-defaults
-   `lookupApiKey` field).
+  plan starter ($7/mo), region singapore, health check `/health`, auto-deploy on push to `main` enabled.
+- **Database connectivity**: The Hostinger VPS (`200.141.1.119:5433`) iptables `DOCKER-USER` drop rule was removed, `pg_hba.conf` configured for user `pawanshukla` from `0.0.0.0/0`, and PostgreSQL reloaded. Render connects directly.
+- **Render Environment Sync**: `RENDER_API_KEY` is configured in GitHub Secrets. `deploy.yml` atomically updates all secrets (`VMS_DATABASE_URL`, `LOOKUP_API_KEY`) and `FS_*` schema mapping variables in a single payload, preserving all configurations.
+- **Live verification**:
+  - `GET /health` → `200 OK` (`{"status":"ok","database":"connected","mapping":"ready","readOnly":true}`).
+  - `GET /api/lookup?marketplace=flipkart&trackingId=FMPP4335992170` with `X-Api-Key` → `200 OK` with items (`BT203-Hamza-Black_M`, qty 1).
+- **Brand Identity**: Flipkart & Myntra brand logos retrieved via Brandfetch MCP and integrated into the desktop app.
+- **Release pipeline**: Tag `v1.0.0` published with Windows installer `YouthnicPackingDeskSetup.exe`. Desks point `LOOKUP_API_URL` at `https://flipkart-vms-server2-0.onrender.com` with the API key in the setup wizard.
 
 **Workflows:**
 

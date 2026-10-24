@@ -23,7 +23,7 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Border Width="28" Height="28" CornerRadius="6" Background="White"
                             BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Padding="2">
-                        <Image Source="/Assets/youthnic_logo.png" Stretch="Uniform"
+                        <Image Source="pack://application:,,,/Youthnic.Desktop;component/Assets/youthnic_logo.png" Stretch="Uniform"
                                RenderOptions.BitmapScalingMode="HighQuality"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center" Margin="8,0,0,0">

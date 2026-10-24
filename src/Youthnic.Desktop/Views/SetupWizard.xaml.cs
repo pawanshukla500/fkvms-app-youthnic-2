@@ -30,7 +30,7 @@ public partial class SetupWizard : Window
         DeviceIdBox.Text = string.IsNullOrWhiteSpace(options.DeviceId)
             ? Guid.NewGuid().ToString("N")
             : options.DeviceId;
-        DeskNameBox.Text = options.DeskName;
+        DeskNameBox.Text = !string.IsNullOrWhiteSpace(options.DeskName) ? options.DeskName : "Packing Desk";
         LookupUrlBox.Text = !string.IsNullOrWhiteSpace(options.LookupApiUrl)
             ? options.LookupApiUrl
             : !string.IsNullOrWhiteSpace(defaults.LookupApiUrl)
@@ -45,19 +45,33 @@ public partial class SetupWizard : Window
         FkUrlBox.Text = !string.IsNullOrWhiteSpace(options.Flipkart.VmsUrl)
             ? options.Flipkart.VmsUrl
             : DeskOptions.DefaultFlipkartVmsUrl;
-        FkUserBox.Text = options.Flipkart.Username;
-        FkPassBox.Password = options.Flipkart.Password;
-        FkFeedBox.Text = options.Flipkart.FeedId;
+        FkUserBox.Text = !string.IsNullOrWhiteSpace(options.Flipkart.Username)
+            ? options.Flipkart.Username
+            : DeskOptions.DefaultUsername;
+        FkPassBox.Password = !string.IsNullOrWhiteSpace(options.Flipkart.Password)
+            ? options.Flipkart.Password
+            : DeskOptions.DefaultPassword;
+        FkFeedBox.Text = !string.IsNullOrWhiteSpace(options.Flipkart.FeedId)
+            ? options.Flipkart.FeedId
+            : DeskOptions.DefaultFeedId;
         FkSellerBox.Text = !string.IsNullOrWhiteSpace(options.Flipkart.SellerAccount)
             ? options.Flipkart.SellerAccount
             : !string.IsNullOrWhiteSpace(defaults.FlipkartSeller)
                 ? defaults.FlipkartSeller!
                 : DeskOptions.DefaultFlipkartSeller;
 
-        MyUrlBox.Text = options.Myntra.VmsUrl;
-        MyUserBox.Text = options.Myntra.Username;
-        MyPassBox.Password = options.Myntra.Password;
-        MyFeedBox.Text = options.Myntra.FeedId;
+        MyUrlBox.Text = !string.IsNullOrWhiteSpace(options.Myntra.VmsUrl)
+            ? options.Myntra.VmsUrl
+            : DeskOptions.DefaultMyntraVmsUrl;
+        MyUserBox.Text = !string.IsNullOrWhiteSpace(options.Myntra.Username)
+            ? options.Myntra.Username
+            : DeskOptions.DefaultUsername;
+        MyPassBox.Password = !string.IsNullOrWhiteSpace(options.Myntra.Password)
+            ? options.Myntra.Password
+            : DeskOptions.DefaultPassword;
+        MyFeedBox.Text = !string.IsNullOrWhiteSpace(options.Myntra.FeedId)
+            ? options.Myntra.FeedId
+            : DeskOptions.DefaultFeedId;
         MySellerBox.Text = !string.IsNullOrWhiteSpace(options.Myntra.SellerAccount)
             ? options.Myntra.SellerAccount
             : !string.IsNullOrWhiteSpace(defaults.MyntraSeller)

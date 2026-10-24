@@ -42,8 +42,16 @@ public static class VmsScripts
           return (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
         }
         function __yFindInputByName(name) {
-          var inputs = document.querySelectorAll('input:not([type="hidden"]), textarea');
           var n = (name || '').trim().toLowerCase();
+          if (n.indexOf('user') !== -1 || n.indexOf('email') !== -1) {
+            var em = document.getElementById('email');
+            if (em) return em;
+          }
+          if (n.indexOf('pass') !== -1) {
+            var pw = document.getElementById('password') || document.querySelector('input[type="password"]');
+            if (pw) return pw;
+          }
+          var inputs = document.querySelectorAll('input:not([type="hidden"]), textarea');
           for (var i = 0; i < inputs.length; i++) {
             if (__yEq(__yAccessibleName(inputs[i]), name)) return inputs[i];
           }

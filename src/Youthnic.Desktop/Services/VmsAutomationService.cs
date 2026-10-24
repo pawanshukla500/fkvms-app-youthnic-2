@@ -178,7 +178,7 @@ public sealed class VmsAutomationService : IDisposable
 
         if (probe.OnOperatorVms)
         {
-            if (probe.Awb && probe.RecordVisible)
+            if (probe.Awb || probe.RecordVisible)
             {
                 await EnterPackingAsync().ConfigureAwait(false);
             }
@@ -198,7 +198,7 @@ public sealed class VmsAutomationService : IDisposable
         {
             if (probe.OnOperatorVms)
             {
-                SetState(probe.Awb && probe.RecordVisible ? AutomationState.Packing : AutomationState.ConnectingFeed);
+                SetState((probe.Awb || probe.RecordVisible) ? AutomationState.Packing : AutomationState.ConnectingFeed);
                 if (State == AutomationState.Packing) await EnterPackingAsync().ConfigureAwait(false);
             }
             else
@@ -238,7 +238,7 @@ public sealed class VmsAutomationService : IDisposable
             return;
         }
 
-        if (probe.Awb && probe.RecordVisible)
+        if (probe.Awb || probe.RecordVisible)
         {
             await EnterPackingAsync().ConfigureAwait(false);
             return;
@@ -289,7 +289,7 @@ public sealed class VmsAutomationService : IDisposable
             return;
         }
 
-        if (probe.Awb && probe.RecordVisible)
+        if (probe.Awb || probe.RecordVisible)
         {
             if (_disconnectReported)
             {

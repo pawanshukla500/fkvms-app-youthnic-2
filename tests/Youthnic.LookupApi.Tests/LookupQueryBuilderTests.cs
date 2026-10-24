@@ -129,7 +129,7 @@ public class LookupQueryBuilderSellerFilterTests
 
         Assert.True(usesMarketplace);
         Assert.True(usesSeller);
-        Assert.Contains("upper($3)", sql);          // seller via parameter, never concatenated
+        Assert.Contains("ANY($3)", sql);          // seller via parameter, never concatenated
         Assert.Contains("\"seller\"", sql);
         Assert.DoesNotContain("ETHNIC", sql);       // values never leak into SQL text
     }

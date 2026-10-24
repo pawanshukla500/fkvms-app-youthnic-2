@@ -1,0 +1,87 @@
+<Window x:Class="Youthnic.Desktop.Views.SelectionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Youthnic Packing Desk — Select Marketplace"
+        Width="820" Height="480"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource PageBackground}"
+        ResizeMode="CanMinimize">
+    <Grid Margin="30">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,24">
+            <TextBlock Text="YOUTHNIC PACKING DESK" FontSize="22" FontWeight="Bold"
+                       Foreground="{StaticResource TextPrimary}"/>
+            <TextBlock Text="Choose the marketplace VMS to pack today" FontSize="13"
+                       Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <UniformGrid Grid.Row="1" Columns="2" Rows="1">
+
+            <!-- Flipkart card -->
+            <Border x:Name="FlipkartCard" Background="White" CornerRadius="10"
+                    BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
+                    Padding="28" Margin="0,0,10,0" Cursor="Hand"
+                    MouseLeftButtonUp="Card_Click" Tag="Flipkart">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="64" Height="64" CornerRadius="14" Background="{StaticResource FlipkartBlue}">
+                            <TextBlock Text="f" FontSize="38" FontWeight="Bold" FontStyle="Italic"
+                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Flipkart" FontSize="26" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   VerticalAlignment="Center" Margin="16,0,0,0"/>
+                    </StackPanel>
+                    <TextBlock x:Name="FlipkartStatus" Text="Configuration pending"
+                               FontSize="13" Margin="0,20,0,0" Foreground="{StaticResource TextMuted}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Myntra card -->
+            <Border x:Name="MyntraCard" Background="White" CornerRadius="10"
+                    BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
+                    Padding="28" Margin="10,0,0,0" Cursor="Hand"
+                    MouseLeftButtonUp="Card_Click" Tag="Myntra">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="64" Height="64" CornerRadius="14" Background="{StaticResource MyntraPink}">
+                            <TextBlock Text="M" FontSize="36" FontWeight="Bold"
+                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Myntra" FontSize="26" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   VerticalAlignment="Center" Margin="16,0,0,0"/>
+                    </StackPanel>
+                    <TextBlock x:Name="MyntraStatus" Text="Configuration pending"
+                               FontSize="13" Margin="0,20,0,0" Foreground="{StaticResource TextMuted}"/>
+                    <TextBlock x:Name="MyntraHint" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                               Foreground="{StaticResource TextMuted}"
+                               Text="Configuration pending — open Settings to set up Myntra VMS."
+                               Visibility="Collapsed"/>
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <Grid Grid.Row="2" Margin="0,24,0,0">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock x:Name="VersionText" FontSize="12" Foreground="{StaticResource TextMuted}"
+                           Cursor="Hand" ToolTip="Click to check for updates" MouseLeftButtonUp="VersionText_Click"/>
+                <TextBlock x:Name="DownloadProgressText" FontSize="12" Foreground="{StaticResource TextMuted}"
+                           VerticalAlignment="Center" Margin="12,0,0,0" Visibility="Collapsed"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="UpdateButton" Content="Update available"
+                        Margin="0,0,10,0" Padding="14,6" FontSize="12"
+                        Visibility="Collapsed" Click="UpdateButton_Click"/>
+                <Button x:Name="SettingsButton" Content="Settings"
+                        Style="{StaticResource SecondaryButton}"
+                        Click="SettingsButton_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

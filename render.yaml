@@ -1,0 +1,26 @@
+# Render Blueprint for the Youthnic LookupApi ("Flipkart VMS Server2.0").
+# Secret values (VMS_DATABASE_URL, LOOKUP_API_KEY) are declared with sync: false and
+# pushed once by .github/workflows/deploy.yml from GitHub Secrets — they are NOT stored
+# in this repo. Non-secret env vars live here.
+services:
+  - type: web
+    name: Flipkart VMS Server2.0
+    runtime: docker
+    plan: starter # $7/mo — never sleeps; do not downgrade to free.
+    healthCheckPath: /health
+    region: oregon
+    envVars:
+      # Secrets — set via the Render dashboard or the deploy workflow (sync: false).
+      - key: VMS_DATABASE_URL
+        sync: false
+      - key: LOOKUP_API_KEY
+        sync: false
+      # Non-secret runtime configuration.
+      - key: VMS_DATABASE_READ_ONLY
+        value: "true"
+      - key: VMS_DB_QUERY_TIMEOUT_MS
+        value: "2000"
+      - key: VMS_LOOKUP_CACHE_SECONDS
+        value: "60"
+      - key: DOTNET_GCConserveMemory
+        value: "1"

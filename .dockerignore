@@ -1,0 +1,22 @@
+# Keep the build context small and guarantee no secrets or build output leak in.
+# The Dockerfile only needs src/Youthnic.LookupApi.
+
+# Secrets — never enter the image
+.env
+.env.*
+
+# Build output
+**/bin/
+**/obj/
+out/
+
+# Not needed by the LookupApi image
+installer/
+tests/
+.github/
+docs/
+.git/
+.gitignore
+*.md
+render.yaml
+docker-compose*.yml

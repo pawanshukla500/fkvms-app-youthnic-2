@@ -1,0 +1,103 @@
+name: release
+
+# Publishes a GitHub Release for every v* tag:
+#   1. Verifies the LookupApi builds cleanly (ubuntu).
+#   2. Builds the WPF desktop app self-contained, compiles the Inno Setup installer
+#      on a Windows runner (version taken from the git tag).
+#   3. Creates the GitHub Release and attaches installer/Output/YouthnicPackingDeskSetup.exe.
+# The desktop app's Update button downloads exactly that asset from the latest release.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  SETUP_NAME: YouthnicPackingDeskSetup.exe
+
+jobs:
+  build-lookup-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Verify LookupApi builds (Release)
+        run: |
+          dotnet restore src/Youthnic.LookupApi/Youthnic.LookupApi.csproj
+          dotnet build src/Youthnic.LookupApi/Youthnic.LookupApi.csproj \
+            -c Release --no-restore -v q
+
+  build-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Derive version from tag (v1.2.3 -> 1.2.3)
+        id: vars
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}" -replace '^v', ''
+          "version=$v" >> $env:GITHUB_OUTPUT
+          # keep the desktop assembly version in sync with the tag
+          $csproj = "src/Youthnic.Desktop/Youthnic.Desktop.csproj"
+          (Get-Content $csproj) -replace '<Version>.*</Version>', "<Version>$v</Version>" `
+            -replace '<FileVersion>.*</FileVersion>', "<FileVersion>$v</FileVersion>" `
+            -replace '<AssemblyVersion>.*</AssemblyVersion>', "<AssemblyVersion>$v</AssemblyVersion>" |
+            Set-Content $csproj
+
+      - name: Publish Desktop + LookupApi (self-contained win-x64)
+        run: |
+          dotnet restore YouthnicPackingDesk.sln
+          powershell -File installer/publish.ps1
+
+      - name: Install Inno Setup 6
+        run: choco install innosetup -y --no-progress
+
+      - name: Compile installer
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            /DAppVersion=${{ steps.vars.outputs.version }} installer/setup.iss
+
+      - name: Verify installer output
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "installer/Output/${{ env.SETUP_NAME }}")) {
+            throw "Installer output missing: installer/Output/${{ env.SETUP_NAME }}"
+          }
+          Get-Item "installer/Output/${{ env.SETUP_NAME }}" | Select-Object Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer
+          path: installer/Output/${{ env.SETUP_NAME }}
+          if-no-files-found: error
+
+  release:
+    needs: [build-lookup-api, build-installer]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: installer
+          path: dist
+
+      - name: Create GitHub Release with installer asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --generate-notes \
+            "dist/${{ env.SETUP_NAME }}#YouthnicPackingDeskSetup.exe"

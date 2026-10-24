@@ -99,8 +99,8 @@ public static class VmsScripts
             "  var el = __yFindInputByName(" + nameJson + ");\n" +
             "  if (!el) return 'missing';\n" +
             "  if ((el.value || '') === " + valueJson + ") return 'already';\n" +
-            "  var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set ||\n" +
-            "               Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;\n" +
+            "  var proto = (typeof HTMLTextAreaElement !== 'undefined' && el instanceof HTMLTextAreaElement) ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;\n" +
+            "  var setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;\n" +
             "  el.focus();\n" +
             "  if (setter) { setter.call(el, " + valueJson + "); } else { el.value = " + valueJson + "; }\n" +
             "  if (el._valueTracker) { el._valueTracker.setValue(''); }\n" +
@@ -123,8 +123,8 @@ public static class VmsScripts
             "  var el = __yFindInputByPlaceholder(" + needleJson + ");\n" +
             "  if (!el) return 'missing';\n" +
             "  if ((el.value || '') === " + valueJson + ") return 'already';\n" +
-            "  var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set ||\n" +
-            "               Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;\n" +
+            "  var proto = (typeof HTMLTextAreaElement !== 'undefined' && el instanceof HTMLTextAreaElement) ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;\n" +
+            "  var setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;\n" +
             "  el.focus();\n" +
             "  if (setter) { setter.call(el, " + valueJson + "); } else { el.value = " + valueJson + "; }\n" +
             "  if (el._valueTracker) { el._valueTracker.setValue(''); }\n" +

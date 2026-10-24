@@ -57,6 +57,8 @@ public sealed class VmsAutomationService : IDisposable
 
     private int _missingDomTicks;
     private bool _disconnectReported;
+    private bool _connectClicked;
+    private int _connectCooldownTicks;
 
     public AutomationState State { get; private set; } = AutomationState.Starting;
 
@@ -252,10 +254,23 @@ public sealed class VmsAutomationService : IDisposable
                 ct.ThrowIfCancellationRequested();
             }
 
-            var click = await EvalOnUiAsync(VmsScripts.ClickByName("Connect")).ConfigureAwait(false);
-            if (click?.Contains("clicked", StringComparison.Ordinal) == true)
+            if (!_connectClicked)
             {
-                AppLog.Debug($"VmsAutomation: connect clicked for {_marketplace}");
+                var click = await EvalOnUiAsync(VmsScripts.ClickByName("Connect")).ConfigureAwait(false);
+                if (click?.Contains("clicked", StringComparison.Ordinal) == true)
+                {
+                    _connectClicked = true;
+                    _connectCooldownTicks = 0;
+                    AppLog.Debug($"VmsAutomation: connect clicked for {_marketplace}, awaiting camera stream");
+                }
+            }
+            else
+            {
+                _connectCooldownTicks++;
+                if (_connectCooldownTicks > 8)
+                {
+                    _connectClicked = false;
+                }
             }
             return;
         }
@@ -313,6 +328,7 @@ public sealed class VmsAutomationService : IDisposable
     {
         if (State == state) return;
         State = state;
+        _connectClicked = false;
         _dispatcher.BeginInvoke(() => StateChanged?.Invoke(state));
     }
 

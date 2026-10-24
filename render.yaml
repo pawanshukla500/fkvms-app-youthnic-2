@@ -8,7 +8,7 @@ services:
     runtime: docker
     plan: starter # $7/mo — never sleeps; do not downgrade to free.
     healthCheckPath: /health
-    region: oregon
+    region: singapore
     envVars:
       # Secrets — set via the Render dashboard or the deploy workflow (sync: false).
       - key: VMS_DATABASE_URL

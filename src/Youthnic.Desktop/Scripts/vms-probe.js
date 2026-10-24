@@ -17,42 +17,81 @@
     if (el.tagName === 'BUTTON') return (el.innerText || '').trim();
     var wrapped = el.closest && el.closest('label');
     if (wrapped && wrapped.innerText) return wrapped.innerText.trim();
-    // Placeholder fallback: Chromium uses placeholder as the accessible name
-    // for unlabelled textboxes; mirror that for runtime discovery.
     return (el.getAttribute('placeholder') || '').trim();
   }
-  function equalsIgnoreCase(a, b) {
-    return (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
+  function containsIgnoreCase(str, needle) {
+    return (str || '').toLowerCase().indexOf((needle || '').toLowerCase()) !== -1;
   }
-  function findInputByName(name) {
-    var inputs = document.querySelectorAll('input, textarea');
+  function findUsernameInput() {
+    var inputs = document.querySelectorAll('input:not([type="password"]):not([type="hidden"])');
     for (var i = 0; i < inputs.length; i++) {
-      if (equalsIgnoreCase(accessibleName(inputs[i]), name)) return inputs[i];
+      var el = inputs[i];
+      if (containsIgnoreCase(el.name, 'user') ||
+          containsIgnoreCase(el.id, 'user') ||
+          containsIgnoreCase(el.getAttribute('placeholder'), 'user') ||
+          containsIgnoreCase(accessibleName(el), 'user')) {
+        return el;
+      }
+    }
+    // Fallback: first visible text input on login view
+    for (var j = 0; j < inputs.length; j++) {
+      if (visible(inputs[j])) return inputs[j];
     }
     return null;
   }
-  function findInputByPlaceholder(needle) {
+  function findPasswordInput() {
+    var pass = document.querySelector('input[type="password"]');
+    if (pass) return pass;
     var inputs = document.querySelectorAll('input');
     for (var i = 0; i < inputs.length; i++) {
-      var placeholder = inputs[i].getAttribute('placeholder') || '';
-      if (placeholder.toLowerCase().indexOf(needle.toLowerCase()) !== -1) return inputs[i];
+      var el = inputs[i];
+      if (containsIgnoreCase(el.name, 'pass') ||
+          containsIgnoreCase(el.id, 'pass') ||
+          containsIgnoreCase(el.getAttribute('placeholder'), 'pass')) {
+        return el;
+      }
     }
     return null;
   }
-  function findButton(name) {
+  function findFeedInput() {
+    var inputs = document.querySelectorAll('input, textarea');
+    for (var i = 0; i < inputs.length; i++) {
+      var el = inputs[i];
+      if (containsIgnoreCase(el.getAttribute('placeholder'), 'feed') ||
+          containsIgnoreCase(el.name, 'feed') ||
+          containsIgnoreCase(el.id, 'feed')) {
+        return el;
+      }
+    }
+    return null;
+  }
+  function findAwbInput() {
+    var inputs = document.querySelectorAll('input');
+    for (var i = 0; i < inputs.length; i++) {
+      var el = inputs[i];
+      if (containsIgnoreCase(el.getAttribute('placeholder'), 'awb') ||
+          containsIgnoreCase(el.getAttribute('placeholder'), 'tracking') ||
+          containsIgnoreCase(el.name, 'awb') ||
+          containsIgnoreCase(el.id, 'awb')) {
+        return el;
+      }
+    }
+    return null;
+  }
+  function findButton(needle) {
     var els = document.querySelectorAll('button, [role="button"], input[type="submit"], input[type="button"]');
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
       var text = el.tagName === 'INPUT' ? (el.value || '') : (el.innerText || accessibleName(el));
-      if (equalsIgnoreCase(text, name)) return el;
+      if (containsIgnoreCase(text, needle)) return el;
     }
     return null;
   }
 
-  var username = findInputByName('Username');
-  var password = findInputByName('Password');
-  var feed = findInputByPlaceholder('Feed Id');
-  var awb = findInputByPlaceholder('AWB');
+  var username = findUsernameInput();
+  var password = findPasswordInput();
+  var feed = findFeedInput();
+  var awb = findAwbInput();
   var loginBtn = findButton('Login');
   var connectBtn = findButton('Connect');
   var recordBtn = findButton('Record');
@@ -65,8 +104,8 @@
     feed: !!feed,
     awb: !!awb,
     feedFilled: feed ? !!feed.value : false,
-    loginVisible: !!(loginBtn && !loginBtn.disabled && visible(loginBtn)),
-    connectVisible: !!(connectBtn && !connectBtn.disabled && visible(connectBtn)),
+    loginVisible: !!(loginBtn && visible(loginBtn)),
+    connectVisible: !!(connectBtn && visible(connectBtn)),
     recordVisible: !!(recordBtn && !recordBtn.disabled && visible(recordBtn))
   });
 })()

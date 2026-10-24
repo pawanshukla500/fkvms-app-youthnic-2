@@ -18,7 +18,7 @@ public static class LookupQueryBuilder
 
     /// <summary>
     /// Returns SQL of the form:
-    /// BEGIN READ ONLY; SELECT ... FROM orders o JOIN order_items oi ON ... WHERE upper(o.tracking)=upper($1) AND lower(o.marketplace)=lower($2) [AND upper(o.seller)=upper($N)] LIMIT 50; COMMIT;
+    /// BEGIN READ ONLY; SELECT ... FROM orders o JOIN order_items oi ON ... WHERE upper(o.tracking)=upper($1) AND lower(o.marketplace)=lower($2) [AND upper(o.seller)=ANY($N)] LIMIT 50; COMMIT;
     /// (or the items-JSON lateral-join shape when <see cref="ForwardScanMapping.ItemsJsonColumn"/> is set).
     /// </summary>
     public static string Build(ForwardScanMapping m, out bool usesMarketplaceParameter)
@@ -26,8 +26,8 @@ public static class LookupQueryBuilder
 
     /// <summary>
     /// Same as <see cref="Build(ForwardScanMapping, out bool)"/> with an optional
-    /// exact, parameterized seller-account filter ($2/$3) so one packing desk can pin
-    /// lookups to its own seller account (e.g. "ETHNIC JUNCTION - Flipkart").
+    /// parameterized seller-accounts filter ($2/$3) using ANY($N) so one packing desk can pin
+    /// lookups to specific seller account(s) (e.g. "ETHNIC JUNCTION - Flipkart" or Myntra accounts).
     /// </summary>
     public static string Build(ForwardScanMapping m, bool includeSellerFilter, out bool usesMarketplaceParameter, out bool usesSellerParameter)
     {
@@ -39,6 +39,18 @@ public static class LookupQueryBuilder
         return string.IsNullOrWhiteSpace(m.ItemsJsonColumn)
             ? BuildItemsTableQuery(m, includeSellerFilter, out usesMarketplaceParameter, out usesSellerParameter)
             : BuildItemsJsonQuery(m, includeSellerFilter, out usesMarketplaceParameter, out usesSellerParameter);
+    }
+
+    /// <summary>
+    /// Builds a fast 1-row query to find the seller/channel for a tracking ID across all channels
+    /// (used to detect cross-marketplace scans, e.g. scanning a Myntra barcode on a Flipkart desk).
+    /// </summary>
+    public static string BuildCrossCheckQuery(ForwardScanMapping m)
+    {
+        MappingValidator.ValidateMapping(m);
+        var orders = TableIdent(m.SchemaOrders, m.OrdersTable);
+        var sellerCol = string.IsNullOrWhiteSpace(m.ColSeller) ? "NULL" : Quoted(m.ColSeller);
+        return $"SELECT o.{sellerCol} FROM {orders} o WHERE upper(o.{Quoted(m.ColTracking)}) = upper($1) LIMIT 1;";
     }
 
     // ---------------------------------------------------------------- items-table mode
@@ -130,7 +142,7 @@ public static class LookupQueryBuilder
     }
 
     /// <summary>
-    /// Appends the parameterized seller predicate. The parameter number follows the
+    /// Appends the parameterized seller predicate using ANY($N). The parameter number follows the
     /// marketplace parameter: $3 when a marketplace predicate exists, otherwise $2.
     /// </summary>
     private static void AppendSellerFilter(StringBuilder sb, ForwardScanMapping m, bool includeSellerFilter,
@@ -139,7 +151,7 @@ public static class LookupQueryBuilder
         usesSellerParameter = includeSellerFilter;
         if (!includeSellerFilter) return;
         var n = usesMarketplaceParameter ? 3 : 2;
-        sb.Append(" AND upper(o.").Append(Quoted(m.ColSeller)).Append(") = upper($").Append(n).Append(")");
+        sb.Append(" AND upper(o.").Append(Quoted(m.ColSeller)).Append(") = ANY($").Append(n).Append(")");
     }
 
     /// <summary>Quotes a single identifier (no dots) after allowlist validation.</summary>

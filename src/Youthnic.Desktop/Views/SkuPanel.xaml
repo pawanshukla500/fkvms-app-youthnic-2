@@ -9,16 +9,42 @@
 
     <Grid Margin="10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- Top Header: Youthnic Brand & Marketplace Badge -->
+        <Border Grid.Row="0" Margin="0,0,0,10" Padding="8,6" Background="#F8FAFC"
+                BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="6">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="28" Height="28" CornerRadius="6" Background="White"
+                            BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Padding="2">
+                        <Image Source="/Assets/youthnic_logo.png" Stretch="Uniform"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center" Margin="8,0,0,0">
+                        <TextBlock Text="YOUTHNIC" FontSize="12" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimary}" LetterSpacing="1"/>
+                        <TextBlock Text="Packing Station" FontSize="10" Foreground="{StaticResource TextMuted}"/>
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel x:Name="MarketplaceBadge" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Image x:Name="MarketplaceLogo" Width="20" Height="20" Stretch="Uniform"
+                           RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,6,0"/>
+                    <TextBlock x:Name="MarketplaceText" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- Product image / state area -->
-        <Border Grid.Row="0" Background="#F4F6F9" CornerRadius="6"
+        <Border Grid.Row="1" Background="#F4F6F9" CornerRadius="6"
                 BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
-                MinHeight="380" MaxHeight="520">
+                MinHeight="360" MaxHeight="500">
             <Grid>
                 <!-- Idle -->
                 <StackPanel x:Name="IdlePanel" VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -54,32 +80,77 @@
 
                 <!-- Product image -->
                 <Image x:Name="ProductImage" Stretch="Uniform" Margin="10"
+                       RenderOptions.BitmapScalingMode="HighQuality"
                        Visibility="Collapsed"/>
+
+                <!-- Placeholder glyph shown inside the image area when no image is available -->
+                <TextBlock x:Name="ImageMissingOverlay" Text="No image"
+                           Foreground="{StaticResource TextMuted}" FontSize="14"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="Collapsed" IsHitTestVisible="False"/>
+
+                <!-- Multi-Quantity Alert Popup Overlay -->
+                <Border x:Name="MultiQtyOverlay" Visibility="Collapsed"
+                        Background="#FEF3C7" BorderBrush="#D97706" BorderThickness="2" CornerRadius="10"
+                        Margin="12" VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                        Padding="16,14">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Background="#D97706" CornerRadius="4" Padding="8,3" HorizontalAlignment="Center">
+                            <TextBlock Text="⚠ MULTI-QUANTITY ALERT" FontWeight="Bold" FontSize="11" Foreground="White"/>
+                        </Border>
+                        <TextBlock x:Name="MultiQtyTitle" Text="2 UNITS TO PACK" FontSize="20" FontWeight="Bold"
+                                   Foreground="#92400E" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                        <TextBlock x:Name="MultiQtyDesc" Text="This shipment contains 2 items. Verify all pieces before sealing."
+                                   FontSize="12" Foreground="#B45309" HorizontalAlignment="Center" TextAlignment="Center"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" MaxWidth="280"/>
+                        <Grid Margin="0,12,0,0">
+                            <TextBlock x:Name="MultiQtyCountdownText" Text="Auto-closing in 3s…" FontSize="11"
+                                       Foreground="#92400E" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                            <Button Content="Got It" Style="{StaticResource SecondaryButton}" Padding="14,4" FontSize="11"
+                                    HorizontalAlignment="Right" Click="DismissMultiQty_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Wrong Marketplace Alert Popup Overlay -->
+                <Border x:Name="WrongMarketplaceOverlay" Visibility="Collapsed"
+                        Background="#FEE2E2" BorderBrush="#DC2626" BorderThickness="2" CornerRadius="10"
+                        Margin="12" VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                        Padding="16,14">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Background="#DC2626" CornerRadius="4" Padding="8,3" HorizontalAlignment="Center">
+                            <TextBlock Text="🚫 WRONG MARKETPLACE" FontWeight="Bold" FontSize="11" Foreground="White"/>
+                        </Border>
+                        <TextBlock Text="WRONG DESK SCANNED!" FontSize="18" FontWeight="Bold"
+                                   Foreground="#991B1B" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                        <TextBlock x:Name="WrongMarketplaceDesc" Text="This barcode belongs to another marketplace!"
+                                   FontSize="12" Foreground="#B91C1C" HorizontalAlignment="Center" TextAlignment="Center"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" MaxWidth="280"/>
+                        <Grid Margin="0,12,0,0">
+                            <TextBlock x:Name="WrongMarketplaceCountdownText" Text="Alert closing in 3s…" FontSize="11"
+                                       Foreground="#991B1B" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                            <Button Content="Dismiss" Style="{StaticResource SecondaryButton}" Padding="14,4" FontSize="11"
+                                    HorizontalAlignment="Right" Click="DismissWrongMarketplace_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </Grid>
         </Border>
 
-        <!-- Placeholder glyph shown inside the image area when no image is available -->
-        <TextBlock x:Name="ImageMissingOverlay" Grid.Row="0" Text="No image"
-                   Foreground="{StaticResource TextMuted}" FontSize="14"
-                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                   Visibility="Collapsed" IsHitTestVisible="False"/>
-
         <!-- SKU identity -->
-        <StackPanel Grid.Row="1" Margin="0,12,0,0">
-            <TextBlock x:Name="SkuNameText" FontSize="20" FontWeight="SemiBold"
+        <StackPanel Grid.Row="2" Margin="0,12,0,0">
+            <TextBlock x:Name="SkuNameText" FontSize="18" FontWeight="SemiBold"
                        Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap"/>
             <TextBlock x:Name="SkuIdText" FontSize="13" Foreground="{StaticResource TextMuted}"
                        TextWrapping="Wrap" Margin="0,3,0,0"/>
         </StackPanel>
 
-        <!-- Additional items in multi-SKU shipments.
-             Scrolls beyond ~6 rows; every row is a fixed height so the list never
-             jumps, and both SKU and name are trimmed with a tooltip for the full text. -->
-        <StackPanel Grid.Row="2" Margin="0,10,0,0"
+        <!-- Additional items in multi-SKU shipments -->
+        <StackPanel Grid.Row="3" Margin="0,10,0,0"
                     Visibility="{Binding ElementName=AdditionalItemsList, Path=HasItems, Converter={StaticResource BoolToVis}}">
             <TextBlock Text="Also in this shipment" FontSize="12" FontWeight="SemiBold"
                        Foreground="{StaticResource TextMuted}" Margin="0,0,0,4"/>
-            <ScrollViewer MaxHeight="172" VerticalScrollBarVisibility="Auto"
+            <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl x:Name="AdditionalItemsList">
                     <ItemsControl.ItemsPanel>
@@ -115,7 +186,7 @@
         </StackPanel>
 
         <!-- Tiny status line -->
-        <TextBlock x:Name="StatusText" Grid.Row="3" FontSize="11" Foreground="{StaticResource TextMuted}"
+        <TextBlock x:Name="StatusText" Grid.Row="4" FontSize="11" Foreground="{StaticResource TextMuted}"
                    Margin="0,10,0,0" TextWrapping="Wrap"/>
     </Grid>
 </UserControl>

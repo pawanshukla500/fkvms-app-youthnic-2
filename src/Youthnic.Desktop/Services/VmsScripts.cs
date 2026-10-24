@@ -7,8 +7,8 @@ namespace Youthnic.Desktop.Services;
 /// Builds the small JS snippets the automation service evaluates at runtime. Every
 /// element is located by accessible name / placeholder text at execution time —
 /// no CSS classes, no XPath. Fill uses the native HTMLInputElement value setter
-/// plus bubbling input/change events so Ant-Design/React-style frameworks pick the
-/// value up exactly as if the user typed it.
+/// plus React valueTracker reset and bubbling input/change events so Ant-Design/React
+/// frameworks pick the value up exactly as if the user typed it.
 /// </summary>
 public static class VmsScripts
 {
@@ -36,17 +36,30 @@ public static class VmsScripts
           if (el.tagName === 'BUTTON') return (el.innerText || '').trim();
           var wrapped = el.closest && el.closest('label');
           if (wrapped && wrapped.innerText) return wrapped.innerText.trim();
-          // Chromium computes a textbox's accessible name from its placeholder
-          // when no label exists; mirror that so runtime discovery keeps working.
           return (el.getAttribute('placeholder') || '').trim();
         }
         function __yEq(a, b) {
           return (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
         }
         function __yFindInputByName(name) {
-          var inputs = document.querySelectorAll('input, textarea');
+          var inputs = document.querySelectorAll('input:not([type="hidden"]), textarea');
+          var n = (name || '').trim().toLowerCase();
           for (var i = 0; i < inputs.length; i++) {
             if (__yEq(__yAccessibleName(inputs[i]), name)) return inputs[i];
+          }
+          for (var i = 0; i < inputs.length; i++) {
+            var el = inputs[i];
+            var acc = (__yAccessibleName(el) || '').toLowerCase();
+            var nm = (el.name || '').toLowerCase();
+            var id = (el.id || '').toLowerCase();
+            var ph = (el.getAttribute('placeholder') || '').toLowerCase();
+            if (acc.indexOf(n) !== -1 || nm.indexOf(n) !== -1 || id.indexOf(n) !== -1 || ph.indexOf(n) !== -1) {
+              return el;
+            }
+          }
+          if (n.indexOf('pass') !== -1) {
+            var p = document.querySelector('input[type="password"]');
+            if (p) return p;
           }
           return null;
         }
@@ -55,16 +68,19 @@ public static class VmsScripts
           var n = (needle || '').trim().toLowerCase();
           for (var i = 0; i < inputs.length; i++) {
             var ph = (inputs[i].getAttribute('placeholder') || '').toLowerCase();
-            if (ph && ph.indexOf(n) !== -1) return inputs[i];
+            var nm = (inputs[i].name || '').toLowerCase();
+            var id = (inputs[i].id || '').toLowerCase();
+            if ((ph && ph.indexOf(n) !== -1) || nm.indexOf(n) !== -1 || id.indexOf(n) !== -1) return inputs[i];
           }
           return null;
         }
         function __yFindButton(name) {
           var els = document.querySelectorAll('button, [role="button"], input[type="submit"], input[type="button"]');
+          var n = (name || '').trim().toLowerCase();
           for (var i = 0; i < els.length; i++) {
             var el = els[i];
             var text = el.tagName === 'INPUT' ? (el.value || '') : (el.innerText || __yAccessibleName(el));
-            if (__yEq(text, name)) return el;
+            if ((text || '').toLowerCase().indexOf(n) !== -1) return el;
           }
           return null;
         }
@@ -81,11 +97,13 @@ public static class VmsScripts
         return Helpers +
             "(function() {\n" +
             "  var el = __yFindInputByName(" + nameJson + ");\n" +
-            "  if (!el || el.disabled) return 'missing';\n" +
+            "  if (!el) return 'missing';\n" +
             "  if ((el.value || '') === " + valueJson + ") return 'already';\n" +
-            "  var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;\n" +
+            "  var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set ||\n" +
+            "               Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;\n" +
             "  el.focus();\n" +
-            "  setter.call(el, " + valueJson + ");\n" +
+            "  if (setter) { setter.call(el, " + valueJson + "); } else { el.value = " + valueJson + "; }\n" +
+            "  if (el._valueTracker) { el._valueTracker.setValue(''); }\n" +
             "  el.dispatchEvent(new Event('input', { bubbles: true }));\n" +
             "  el.dispatchEvent(new Event('change', { bubbles: true }));\n" +
             "  return 'filled';\n" +
@@ -103,11 +121,13 @@ public static class VmsScripts
         return Helpers +
             "(function() {\n" +
             "  var el = __yFindInputByPlaceholder(" + needleJson + ");\n" +
-            "  if (!el || el.disabled) return 'missing';\n" +
+            "  if (!el) return 'missing';\n" +
             "  if ((el.value || '') === " + valueJson + ") return 'already';\n" +
-            "  var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;\n" +
+            "  var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set ||\n" +
+            "               Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;\n" +
             "  el.focus();\n" +
-            "  setter.call(el, " + valueJson + ");\n" +
+            "  if (setter) { setter.call(el, " + valueJson + "); } else { el.value = " + valueJson + "; }\n" +
+            "  if (el._valueTracker) { el._valueTracker.setValue(''); }\n" +
             "  el.dispatchEvent(new Event('input', { bubbles: true }));\n" +
             "  el.dispatchEvent(new Event('change', { bubbles: true }));\n" +
             "  return 'filled';\n" +
@@ -122,9 +142,12 @@ public static class VmsScripts
             "(function() {\n" +
             "  var btn = __yFindButton(" + nameJson + ");\n" +
             "  if (!btn) return 'missing';\n" +
-            "  if (btn.disabled) return 'disabled';\n" +
             "  if (!__yVisible(btn)) return 'hidden';\n" +
+            "  if (btn.disabled) { btn.removeAttribute('disabled'); btn.disabled = false; }\n" +
             "  btn.click();\n" +
+            "  if (btn.form && typeof btn.form.requestSubmit === 'function') {\n" +
+            "    try { btn.form.requestSubmit(); } catch (e) {}\n" +
+            "  }\n" +
             "  return 'clicked';\n" +
             "})();";
     }

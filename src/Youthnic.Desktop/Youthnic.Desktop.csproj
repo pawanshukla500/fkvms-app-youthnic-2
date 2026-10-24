@@ -22,4 +22,9 @@
     <EmbeddedResource Include="Scripts\*.js" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Resource Include="Assets\*.png" />
+    <Resource Include="Assets\*.ico" />
+  </ItemGroup>
+
 </Project>

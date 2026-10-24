@@ -32,6 +32,7 @@ public partial class PackingWindow : Window
         InitializeComponent();
 
         Title = $"Youthnic Packing Desk — {_marketplace}";
+        Panel.SetMarketplace(_marketplace);
         _coordinator = new LookupCoordinator(
             Dispatcher,
             _apiClient,

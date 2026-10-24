@@ -20,7 +20,7 @@ public sealed class LookupApiClient : IDisposable
     private HttpClient? _client;
     private string? _clientBaseUrl;
 
-    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(2.5);
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(8.0);
 
     private HttpClient GetClient(string lookupApiUrl)
     {

@@ -85,8 +85,20 @@ public class ProductCardModelTests
         };
 
         Assert.False(model.HasImage);
+        Assert.True(model.IsLoadingImage);
+
         // Setting image null when already null does not fire
         model.Image = null;
         Assert.Empty(changedProps);
+
+        // Setting actual image fires notifications for Image, HasImage, and IsLoadingImage
+        var bmp = new System.Windows.Media.Imaging.BitmapImage();
+        model.Image = bmp;
+
+        Assert.True(model.HasImage);
+        Assert.False(model.IsLoadingImage);
+        Assert.Contains(nameof(model.Image), changedProps);
+        Assert.Contains(nameof(model.HasImage), changedProps);
+        Assert.Contains(nameof(model.IsLoadingImage), changedProps);
     }
 }

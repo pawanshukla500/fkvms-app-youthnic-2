@@ -112,7 +112,7 @@
 
                                                     <!-- Fallback when image loading -->
                                                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                                                                Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}, ConverterParameter=Inverse}">
+                                                                Visibility="{Binding IsLoadingImage, Converter={StaticResource BoolToVis}}">
                                                         <TextBlock Text="📷" FontSize="30" HorizontalAlignment="Center"
                                                                    Foreground="#94A3B8"/>
                                                         <TextBlock Text="Photo loading…" FontSize="11"
@@ -161,7 +161,7 @@
                             CornerRadius="0,0,12,12" Padding="20,12">
                         <Grid>
                             <TextBlock x:Name="ModalCountdownText"
-                                       Text="Closes by itself in 5s · tap anywhere or press Esc to close now"
+                                       Text="Closes in 5s · click outside or press Esc to close now"
                                        FontSize="12" Foreground="#64748B" VerticalAlignment="Center"/>
                             <Button Content="Got It" Style="{StaticResource PrimaryModalButton}"
                                     HorizontalAlignment="Right" Click="CloseModal_Click"/>

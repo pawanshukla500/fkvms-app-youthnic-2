@@ -41,9 +41,12 @@ public sealed class ProductCardModel : INotifyPropertyChanged
             {
                 _hasImage = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsLoadingImage));
             }
         }
     }
+
+    public bool IsLoadingImage => !_hasImage;
 
     public static ProductCardModel FromLookupItem(LookupItem item, int index)
     {

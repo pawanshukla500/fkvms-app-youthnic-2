@@ -151,7 +151,7 @@
                                                     
                                                     <!-- Fallback size badge when image loading -->
                                                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                                                                Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}, ConverterParameter=Inverse}">
+                                                                Visibility="{Binding IsLoadingImage, Converter={StaticResource BoolToVis}}">
                                                         <TextBlock Text="{Binding Size, FallbackValue='ITEM'}" FontSize="11"
                                                                    FontWeight="Bold" Foreground="#0284C7" HorizontalAlignment="Center"/>
                                                         <TextBlock Text="Photo loading" FontSize="9" Foreground="{StaticResource TextMuted}"

@@ -146,7 +146,7 @@ public partial class PackingWindow : Window
         ModalBannerSubtitle.Text = $"{totalUnits} items · {result.Items.Count} different SKUs · {result.Awb}";
 
         _modalCountdown = 5;
-        ModalCountdownText.Text = $"Closes by itself in {_modalCountdown}s · tap anywhere or press Esc to close now";
+        ModalCountdownText.Text = $"Closes in {_modalCountdown}s · click outside or press Esc to close now";
 
         _modalTimer?.Stop();
         _modalTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -159,7 +159,7 @@ public partial class PackingWindow : Window
             }
             else
             {
-                ModalCountdownText.Text = $"Closes by itself in {_modalCountdown}s · tap anywhere or press Esc to close now";
+                ModalCountdownText.Text = $"Closes in {_modalCountdown}s · click outside or press Esc to close now";
             }
         };
         _modalTimer.Start();
@@ -473,6 +473,7 @@ public partial class PackingWindow : Window
         AppLog.Info("PackingWindow: manual session restart");
         StatusText.Text = string.Empty;
         RestartButton.Visibility = Visibility.Collapsed;
+        _coordinator.CancelPending();
         _automation.Stop();
         _automationStarted = false;
         _currentSeq = 0;

@@ -23,10 +23,19 @@ public sealed record VmsProbe(
     bool FeedFilled,
     bool LoginVisible,
     bool ConnectVisible,
-    bool RecordVisible)
+    bool RecordVisible,
+    bool LoginLoading = false)
 {
-    public bool OnLogin => Url.Contains("#/login", StringComparison.OrdinalIgnoreCase);
-    public bool OnOperatorVms => Url.Contains("#/operator/vms", StringComparison.OrdinalIgnoreCase);
+    public bool OnLogin => Url.Contains("#/login", StringComparison.OrdinalIgnoreCase)
+        || Url.EndsWith("/login", StringComparison.OrdinalIgnoreCase)
+        || (LoginVisible && Username && Password);
+
+    public bool OnOperatorVms => Url.Contains("#/operator/vms", StringComparison.OrdinalIgnoreCase)
+        || Url.Contains("/operator/vms", StringComparison.OrdinalIgnoreCase)
+        || Feed
+        || Awb
+        || RecordVisible
+        || ConnectVisible;
 }
 
 /// <summary>
@@ -59,6 +68,8 @@ public sealed class VmsAutomationService : IDisposable
     private bool _disconnectReported;
     private bool _connectClicked;
     private int _connectCooldownTicks;
+    private bool _loginSubmitted;
+    private int _loginSubmittedTicks;
 
     public AutomationState State { get; private set; } = AutomationState.Starting;
 
@@ -83,6 +94,10 @@ public sealed class VmsAutomationService : IDisposable
         _config = config;
         _missingDomTicks = 0;
         _disconnectReported = false;
+        _connectClicked = false;
+        _connectCooldownTicks = 0;
+        _loginSubmitted = false;
+        _loginSubmittedTicks = 0;
         SetState(AutomationState.Starting);
         _loopCts = new CancellationTokenSource();
         _ = Task.Run(() => LoopAsync(_loopCts.Token));
@@ -93,6 +108,9 @@ public sealed class VmsAutomationService : IDisposable
         _loopCts?.Cancel();
         _loopCts?.Dispose();
         _loopCts = null;
+        _loginSubmitted = false;
+        _loginSubmittedTicks = 0;
+        _connectClicked = false;
     }
 
     public void Dispose() => Stop();
@@ -104,7 +122,7 @@ public sealed class VmsAutomationService : IDisposable
             try
             {
                 await Task.Delay(PollIntervalMs, ct).ConfigureAwait(false);
-                if (_tickInProgress || _webView?.CoreWebView2 is null) continue;
+                if (_tickInProgress) continue;
                 _tickInProgress = true;
                 try
                 {
@@ -196,6 +214,8 @@ public sealed class VmsAutomationService : IDisposable
 
         if (!probe.OnLogin)
         {
+            _loginSubmitted = false;
+            _loginSubmittedTicks = 0;
             if (probe.OnOperatorVms)
             {
                 SetState((probe.Awb || probe.RecordVisible) ? AutomationState.Packing : AutomationState.ConnectingFeed);
@@ -206,6 +226,16 @@ public sealed class VmsAutomationService : IDisposable
                 SetState(AutomationState.Starting);
             }
             return;
+        }
+
+        if (_loginSubmitted)
+        {
+            _loginSubmittedTicks++;
+            if (probe.LoginLoading || _loginSubmittedTicks < 12)
+            {
+                return;
+            }
+            _loginSubmitted = false;
         }
 
         if (probe.Username && probe.Password)
@@ -221,7 +251,8 @@ public sealed class VmsAutomationService : IDisposable
             if (click?.Contains("clicked", StringComparison.Ordinal) == true)
             {
                 AppLog.Info("VmsAutomation: login submitted, waiting for operator VMS");
-                SetState(AutomationState.ConnectingFeed);
+                _loginSubmitted = true;
+                _loginSubmittedTicks = 0;
             }
         }
     }
@@ -234,6 +265,7 @@ public sealed class VmsAutomationService : IDisposable
         if (probe.OnLogin)
         {
             AppLog.Info("VmsAutomation: session expired, re-running login");
+            _connectClicked = false;
             SetState(AutomationState.LoggingIn);
             return;
         }
@@ -246,10 +278,10 @@ public sealed class VmsAutomationService : IDisposable
 
         if (probe.Feed)
         {
-            if (!probe.FeedFilled)
+            var fillStatus = await EvalOnUiAsync(VmsScripts.FillByPlaceholder("Feed", config.FeedId)).ConfigureAwait(false);
+            if (string.Equals(fillStatus?.Trim('"'), "filled", StringComparison.OrdinalIgnoreCase))
             {
-                AppLog.Debug($"VmsAutomation: filling feed id for {_marketplace}");
-                await EvalOnUiAsync(VmsScripts.FillByPlaceholder("Feed", config.FeedId)).ConfigureAwait(false);
+                AppLog.Debug($"VmsAutomation: filled feed id '{config.FeedId}' for {_marketplace}");
                 await Task.Delay(FeedFillToClickDelayMs, ct).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
             }
@@ -267,7 +299,7 @@ public sealed class VmsAutomationService : IDisposable
             else
             {
                 _connectCooldownTicks++;
-                if (_connectCooldownTicks > 8)
+                if (_connectCooldownTicks > 10)
                 {
                     _connectClicked = false;
                 }
@@ -318,10 +350,14 @@ public sealed class VmsAutomationService : IDisposable
         SetState(AutomationState.Packing);
         _missingDomTicks = 0;
         _disconnectReported = false;
-        if (_webView is not null)
+        var op = _dispatcher.InvokeAsync(async () =>
         {
-            await ScanObserver.EnsureInjectedAsync(_webView).ConfigureAwait(false);
-        }
+            if (_webView is not null)
+            {
+                await ScanObserver.EnsureInjectedAsync(_webView).ConfigureAwait(false);
+            }
+        });
+        await op.Task.Unwrap().ConfigureAwait(false);
     }
 
     private void SetState(AutomationState state)
@@ -337,8 +373,6 @@ public sealed class VmsAutomationService : IDisposable
 
     private Task<string?> EvalOnUiAsync(string script)
     {
-        var webView = _webView;
-        if (webView?.CoreWebView2 is null) return Task.FromResult<string?>(null);
         var op = _dispatcher.InvokeAsync(async () =>
         {
             var core = _webView?.CoreWebView2;

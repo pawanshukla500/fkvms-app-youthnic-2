@@ -112,6 +112,8 @@
                   !!(disconnectBtn && visible(disconnectBtn)) ||
                   !!(recordBtn && !recordBtn.disabled && visible(recordBtn));
 
+  var loginLoading = !!(loginBtn && (loginBtn.classList.contains('ant-btn-loading') || loginBtn.disabled));
+
   return JSON.stringify({
     url: location.href,
     ready: document.readyState,
@@ -121,6 +123,7 @@
     awb: !!awb,
     feedFilled: feed ? !!feed.value : false,
     loginVisible: !!(loginBtn && visible(loginBtn)),
+    loginLoading: loginLoading,
     connectVisible: !!(connectBtn && visible(connectBtn)),
     recordVisible: isPacking,
     isPacking: isPacking

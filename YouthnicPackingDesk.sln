@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{35FBC403
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youthnic.LookupApi.Tests", "tests\Youthnic.LookupApi.Tests\Youthnic.LookupApi.Tests.csproj", "{B532E1A9-68B1-4000-BB73-423A6DD5795F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youthnic.Desktop.Tests", "tests\Youthnic.Desktop.Tests\Youthnic.Desktop.Tests.csproj", "{CA8B5CAF-FE22-43CA-8F19-0C06A02F34A9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -34,10 +36,15 @@ Global
 		{B532E1A9-68B1-4000-BB73-423A6DD5795F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B532E1A9-68B1-4000-BB73-423A6DD5795F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B532E1A9-68B1-4000-BB73-423A6DD5795F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA8B5CAF-FE22-43CA-8F19-0C06A02F34A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA8B5CAF-FE22-43CA-8F19-0C06A02F34A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA8B5CAF-FE22-43CA-8F19-0C06A02F34A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA8B5CAF-FE22-43CA-8F19-0C06A02F34A9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{AB643233-4EA5-4F5B-8DFE-194D1D2560AF} = {88F402BA-3B24-4773-BFEB-7B4739CD8822}
 		{8B841F4A-2830-41C4-B0B6-D2F7EBB716F3} = {88F402BA-3B24-4773-BFEB-7B4739CD8822}
 		{B532E1A9-68B1-4000-BB73-423A6DD5795F} = {35FBC403-1F59-4CB9-AF5D-01A824917920}
+		{CA8B5CAF-FE22-43CA-8F19-0C06A02F34A9} = {35FBC403-1F59-4CB9-AF5D-01A824917920}
 	EndGlobalSection
 EndGlobal

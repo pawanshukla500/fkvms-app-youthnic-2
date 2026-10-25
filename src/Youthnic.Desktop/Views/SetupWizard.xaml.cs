@@ -44,16 +44,24 @@ public partial class SetupWizard : Window
 
         FkUrlBox.Text = !string.IsNullOrWhiteSpace(options.Flipkart.VmsUrl)
             ? options.Flipkart.VmsUrl
-            : DeskOptions.DefaultFlipkartVmsUrl;
+            : !string.IsNullOrWhiteSpace(defaults.FlipkartVmsUrl)
+                ? defaults.FlipkartVmsUrl!
+                : DeskOptions.DefaultFlipkartVmsUrl;
         FkUserBox.Text = !string.IsNullOrWhiteSpace(options.Flipkart.Username)
             ? options.Flipkart.Username
-            : DeskOptions.DefaultUsername;
+            : !string.IsNullOrWhiteSpace(defaults.FlipkartUsername)
+                ? defaults.FlipkartUsername!
+                : DeskOptions.DefaultFlipkartUsername;
         FkPassBox.Password = !string.IsNullOrWhiteSpace(options.Flipkart.Password)
             ? options.Flipkart.Password
-            : DeskOptions.DefaultPassword;
+            : !string.IsNullOrWhiteSpace(defaults.FlipkartPassword)
+                ? defaults.FlipkartPassword!
+                : DeskOptions.DefaultFlipkartPassword;
         FkFeedBox.Text = !string.IsNullOrWhiteSpace(options.Flipkart.FeedId)
             ? options.Flipkart.FeedId
-            : DeskOptions.DefaultFeedId;
+            : !string.IsNullOrWhiteSpace(defaults.FlipkartFeedId)
+                ? defaults.FlipkartFeedId!
+                : DeskOptions.DefaultFlipkartFeedId;
         FkSellerBox.Text = !string.IsNullOrWhiteSpace(options.Flipkart.SellerAccount)
             ? options.Flipkart.SellerAccount
             : !string.IsNullOrWhiteSpace(defaults.FlipkartSeller)
@@ -62,16 +70,24 @@ public partial class SetupWizard : Window
 
         MyUrlBox.Text = !string.IsNullOrWhiteSpace(options.Myntra.VmsUrl)
             ? options.Myntra.VmsUrl
-            : DeskOptions.DefaultMyntraVmsUrl;
+            : !string.IsNullOrWhiteSpace(defaults.MyntraVmsUrl)
+                ? defaults.MyntraVmsUrl!
+                : DeskOptions.DefaultMyntraVmsUrl;
         MyUserBox.Text = !string.IsNullOrWhiteSpace(options.Myntra.Username)
             ? options.Myntra.Username
-            : DeskOptions.DefaultUsername;
+            : !string.IsNullOrWhiteSpace(defaults.MyntraUsername)
+                ? defaults.MyntraUsername!
+                : DeskOptions.DefaultMyntraUsername;
         MyPassBox.Password = !string.IsNullOrWhiteSpace(options.Myntra.Password)
             ? options.Myntra.Password
-            : DeskOptions.DefaultPassword;
+            : !string.IsNullOrWhiteSpace(defaults.MyntraPassword)
+                ? defaults.MyntraPassword!
+                : DeskOptions.DefaultMyntraPassword;
         MyFeedBox.Text = !string.IsNullOrWhiteSpace(options.Myntra.FeedId)
             ? options.Myntra.FeedId
-            : DeskOptions.DefaultFeedId;
+            : !string.IsNullOrWhiteSpace(defaults.MyntraFeedId)
+                ? defaults.MyntraFeedId!
+                : DeskOptions.DefaultMyntraFeedId;
         MySellerBox.Text = !string.IsNullOrWhiteSpace(options.Myntra.SellerAccount)
             ? options.Myntra.SellerAccount
             : !string.IsNullOrWhiteSpace(defaults.MyntraSeller)
@@ -145,6 +161,7 @@ public partial class SetupWizard : Window
                 }
                 if (string.IsNullOrWhiteSpace(MyUserBox.Text)) return Fail("Enter the Myntra VMS username.", MyUserBox);
                 if (MyPassBox.Password.Length == 0) return Fail("Enter the Myntra VMS password.", MyPassBox);
+                if (string.IsNullOrWhiteSpace(MyFeedBox.Text)) return Fail("Enter the Myntra feed id.", MyFeedBox);
                 return true;
 
             case 3:
@@ -202,10 +219,10 @@ public partial class SetupWizard : Window
         var myntraSkipped = string.IsNullOrWhiteSpace(MyUrlBox.Text);
         SummaryText.Text =
             $"Device: {DeviceIdBox.Text} ({DeskNameBox.Text})" + Environment.NewLine +
-            $"Flipkart: {FkUrlBox.Text}, user {FkUserBox.Text}, feed configured" + Environment.NewLine +
+            $"Flipkart: {FkUrlBox.Text}, user {FkUserBox.Text}, feed {FkFeedBox.Text}" + Environment.NewLine +
             (myntraSkipped
                 ? "Myntra: skipped (not configured on this desk)"
-                : $"Myntra: {MyUrlBox.Text}, user {MyUserBox.Text}") + Environment.NewLine +
+                : $"Myntra: {MyUrlBox.Text}, user {MyUserBox.Text}, feed {MyFeedBox.Text}") + Environment.NewLine +
             $"Lookup API: {LookupUrlBox.Text}" +
             (string.IsNullOrWhiteSpace(LookupKeyBox.Text) ? " (no API key)" : " (API key set)");
     }

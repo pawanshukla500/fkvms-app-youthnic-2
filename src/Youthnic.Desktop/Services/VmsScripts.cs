@@ -114,6 +114,7 @@ public static class VmsScripts
             "  if (el._valueTracker) { el._valueTracker.setValue(''); }\n" +
             "  el.dispatchEvent(new Event('input', { bubbles: true }));\n" +
             "  el.dispatchEvent(new Event('change', { bubbles: true }));\n" +
+            "  try { el.blur(); } catch (e) {}\n" +
             "  return 'filled';\n" +
             "})();";
     }
@@ -138,6 +139,7 @@ public static class VmsScripts
             "  if (el._valueTracker) { el._valueTracker.setValue(''); }\n" +
             "  el.dispatchEvent(new Event('input', { bubbles: true }));\n" +
             "  el.dispatchEvent(new Event('change', { bubbles: true }));\n" +
+            "  try { el.blur(); } catch (e) {}\n" +
             "  return 'filled';\n" +
             "})();";
     }
@@ -152,10 +154,14 @@ public static class VmsScripts
             "  if (!btn) return 'missing';\n" +
             "  if (!__yVisible(btn)) return 'hidden';\n" +
             "  if (btn.disabled) { btn.removeAttribute('disabled'); btn.disabled = false; }\n" +
+            "  try { btn.focus(); } catch (e) {}\n" +
             "  btn.click();\n" +
-            "  if (btn.form && typeof btn.form.requestSubmit === 'function') {\n" +
-            "    try { btn.form.requestSubmit(); } catch (e) {}\n" +
-            "  }\n" +
+            "  try {\n" +
+            "    var form = btn.form || (btn.closest && btn.closest('form')) || document.querySelector('form.login-form');\n" +
+            "    if (form && typeof form.requestSubmit === 'function') {\n" +
+            "      form.requestSubmit(btn);\n" +
+            "    }\n" +
+            "  } catch (e) {}\n" +
             "  return 'clicked';\n" +
             "})();";
     }

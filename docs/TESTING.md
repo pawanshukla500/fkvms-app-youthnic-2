@@ -2,7 +2,25 @@
 
 Legend: ✅ verified in this environment · ⏳ requires on-site/real-hardware acceptance run.
 
-## Verification run — 2026-10-24
+## Verification run — 2026-10-25
+
+| Test | Result |
+|---|---|
+| Auto-fill setup-time credentials: username (`ethnicfeed8`), password (`Ethnic@123`), feed ID (`9e5195bd`) auto-seeded for both Flipkart and Myntra | ✅ verified (auto-seeded & unit-tested) |
+| Both Flipkart & Myntra marketplace selection cards active and showing "Configured ✓" on first run | ✅ verified in `SelectionWindow` & `SecureConfigStore` |
+| Progressive image rendering while scanning: SKU text renders immediately, product photo streams in asynchronously without UI blockage | ✅ verified with `LookupCoordinator` and `SkuPanel` |
+| Multi-CDN image fallback: iterates candidate URLs when item has multiple photo links | ✅ verified in `LookupCoordinator` |
+| Two-tier image cache: Tier 1 memory LRU + Tier 2 local SSD cache in `%LocalAppData%\Youthnic\PackingDesk\ImageCache` with custom User-Agent & 15s timeout | ✅ verified in `ImageCache` |
+| Live Render API test with real Flipkart AWB `FMPC6583186374` (`SKD102-Tulsi-Grey_L` + Shopify CDN photo) | ✅ verified 200 OK |
+| Live Render API test with Myntra AWBs `MYSP1489001588` and `MYEC1123208746` | ✅ verified 200 OK (`ETHNIC JUNCTION - Myntra Youthnic` / `VB EXPORT - Myntra PPMP`) |
+| Nullable lookup response deserialization (`pendingSync: null`) | ✅ verified |
+| Cross-marketplace scan detection (wrong desk alert overlay) | ✅ unit-tested & verified |
+| Multi-quantity countdown overlay (auto-dismissing after 3s) | ✅ verified |
+| Unit tests: `dotnet test YouthnicPackingDesk.sln` | ✅ **113/113 pass** (80 API + 33 Desktop tests) |
+| Self-contained packaging: `powershell -ExecutionPolicy Bypass -File installer/publish.ps1` | ✅ verified (`publish/Desktop/Youthnic.Desktop.exe` and `publish/LookupApi`) |
+| CI/CD pipeline verification: tests + self-contained desktop publish step | ✅ verified in `.github/workflows/ci.yml` |
+
+## Previous verification run — 2026-10-24
 
 | Test | Result |
 |---|---|

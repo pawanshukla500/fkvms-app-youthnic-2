@@ -8,14 +8,26 @@ $apiOut     = Join-Path $out 'LookupApi'
 
 foreach ($d in @($desktopOut, $apiOut)) { if (Test-Path $d) { Remove-Item $d -Recurse -Force } }
 
-Write-Host 'Publishing Youthnic.Desktop (self-contained win-x64)...' -ForegroundColor Cyan
-dotnet publish (Join-Path $root 'src/Youthnic.Desktop/Youthnic.Desktop.csproj') `
+# Resolve dotnet CLI path (system PATH or user .dotnet folder)
+$dotnetCmd = 'dotnet'
+if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
+    $candidates = @(
+        (Join-Path $env:USERPROFILE '.dotnet\dotnet.exe'),
+        'C:\Program Files\dotnet\dotnet.exe'
+    )
+    foreach ($c in $candidates) {
+        if (Test-Path $c) { $dotnetCmd = $c; break }
+    }
+}
+
+Write-Host "Publishing Youthnic.Desktop (self-contained win-x64) using $dotnetCmd..." -ForegroundColor Cyan
+& $dotnetCmd publish (Join-Path $root 'src/Youthnic.Desktop/Youthnic.Desktop.csproj') `
     -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=false `
     -o $desktopOut
 
-Write-Host 'Publishing Youthnic.LookupApi (self-contained win-x64)...' -ForegroundColor Cyan
-dotnet publish (Join-Path $root 'src/Youthnic.LookupApi/Youthnic.LookupApi.csproj') `
+Write-Host "Publishing Youthnic.LookupApi (self-contained win-x64) using $dotnetCmd..." -ForegroundColor Cyan
+& $dotnetCmd publish (Join-Path $root 'src/Youthnic.LookupApi/Youthnic.LookupApi.csproj') `
     -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=false `
     -o $apiOut

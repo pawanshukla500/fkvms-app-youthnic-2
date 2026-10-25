@@ -21,8 +21,8 @@ public sealed record LookupItem(
 public sealed record LookupResponse(
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("items")] LookupItem[]? Items,
-    [property: JsonPropertyName("pendingSync")] bool PendingSync,
-    [property: JsonPropertyName("hint")] string? Hint,
+    [property: JsonPropertyName("pendingSync")] bool? PendingSync = null,
+    [property: JsonPropertyName("hint")] string? Hint = null,
     [property: JsonPropertyName("detectedMarketplace")] string? DetectedMarketplace = null,
     [property: JsonPropertyName("detectedSeller")] string? DetectedSeller = null,
     [property: JsonPropertyName("message")] string? Message = null);

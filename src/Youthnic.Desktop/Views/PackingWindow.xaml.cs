@@ -50,8 +50,17 @@ public partial class PackingWindow : Window
         _automation.StateChanged += OnAutomationStateChanged;
         _automation.StatusChanged += message =>
         {
-            StatusText.Text = message;
-            RestartButton.Visibility = Visibility.Visible;
+            Dispatcher.BeginInvoke(() =>
+            {
+                StatusText.Text = message;
+                if (message.Contains("error", StringComparison.OrdinalIgnoreCase) ||
+                    message.Contains("failed", StringComparison.OrdinalIgnoreCase) ||
+                    message.Contains("interrupted", StringComparison.OrdinalIgnoreCase) ||
+                    message.Contains("lost", StringComparison.OrdinalIgnoreCase))
+                {
+                    RestartButton.Visibility = Visibility.Visible;
+                }
+            });
         };
 
         Loaded += async (_, _) => await InitializeWebViewAsync();

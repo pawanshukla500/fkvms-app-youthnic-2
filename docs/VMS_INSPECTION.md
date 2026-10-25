@@ -70,10 +70,17 @@ After successful login the router navigates to `…/index.html#/operator/vms`.
    permission via `CoreWebView2.PermissionRequested` **only** for the configured
    VMS origins, and deny/ignore everything else.
 
-4. **Login/Connect automation order** (DOM-state checks + short delays, per the
-   owner's workflow): fill username → fill password → wait ~1–2 s → click Login →
-   wait for `#/operator/vms` → fill Feed ID → wait ~1–2 s → click Connect →
-   wait for AWB input + Record button to appear.
+4. **Login/Connect automation order & Human Cadence** (anti-bot mitigation):
+   - Direct DOM value manipulation is avoided as modern React / anti-bot suites detect instant value changes or missing keyboard event sequences.
+   - Text inputs (username, password, Feed ID) are typed with human-like cadence (`__yTypeHuman` helper):
+     - Dispatches `keydown` and `keypress` events for each character.
+     - Updates native input value setter and triggers React's internal `_valueTracker`.
+     - Dispatches `input` (`inputType: 'insertText'`) and `keyup` events per character.
+     - Adds randomized 35ms–65ms per-character cadence delay.
+     - Dispatches final `change` event and blurs the field.
+   - Sequence: human-type username → pause 300ms → human-type password → pause 800ms → click Login →
+     wait for `#/operator/vms` → human-type Feed ID → pause 800ms → click Connect →
+     wait for AWB input + Record button to appear.
 
 5. **Session state.** Login session persists in the WebView2 user-data folder
    (isolated per marketplace per device). Session-expiry is detected by the

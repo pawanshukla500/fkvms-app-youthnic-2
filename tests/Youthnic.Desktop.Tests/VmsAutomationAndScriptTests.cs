@@ -6,41 +6,55 @@ namespace Youthnic.Desktop.Tests;
 public class VmsAutomationAndScriptTests
 {
     [Fact]
-    public void VmsScripts_FillByName_GeneratesExecutableJsForUsernameAndPassword()
+    public void VmsScripts_FillByName_GeneratesHumanTypingEvents()
     {
         var userJs = VmsScripts.FillByName("Username", "ethnicfeed8");
         var passJs = VmsScripts.FillByName("Password", "Ethnic@123");
 
         Assert.Contains("ethnicfeed8", userJs);
         Assert.Contains("__yFindInputByName", userJs);
+        Assert.Contains("__yTypeHuman", userJs);
+        Assert.Contains("keydown", userJs);
+        Assert.Contains("keypress", userJs);
+        Assert.Contains("keyup", userJs);
         Assert.Contains("input", userJs);
         Assert.Contains("change", userJs);
 
         Assert.Contains("Ethnic@123", passJs);
         Assert.Contains("__yFindInputByName", passJs);
+        Assert.Contains("__yTypeHuman", passJs);
     }
 
     [Fact]
-    public void VmsScripts_FillByPlaceholder_GeneratesExecutableJsForFeedId()
+    public void VmsScripts_FillByPlaceholder_GeneratesHumanTypingEventsForFeedId()
     {
         var feedJs = VmsScripts.FillByPlaceholder("Feed", "9e5195bd");
 
         Assert.Contains("9e5195bd", feedJs);
         Assert.Contains("__yFindInputByPlaceholder", feedJs);
-        Assert.Contains("placeholder", feedJs);
+        Assert.Contains("__yTypeHuman", feedJs);
+        Assert.Contains("keydown", feedJs);
+        Assert.Contains("keypress", feedJs);
+        Assert.Contains("keyup", feedJs);
     }
 
     [Fact]
-    public void VmsScripts_ClickByName_GeneratesExecutableJsForLoginAndConnect()
+    public void VmsScripts_ClickByName_GeneratesRealMouseSequence()
     {
         var loginClickJs = VmsScripts.ClickByName("Login");
         var connectClickJs = VmsScripts.ClickByName("Connect");
 
         Assert.Contains("Login", loginClickJs);
         Assert.Contains("__yFindButton", loginClickJs);
+        Assert.Contains("mousedown", loginClickJs);
+        Assert.Contains("mouseup", loginClickJs);
+        Assert.Contains("click", loginClickJs);
 
         Assert.Contains("Connect", connectClickJs);
         Assert.Contains("__yFindButton", connectClickJs);
+        Assert.Contains("mousedown", connectClickJs);
+        Assert.Contains("mouseup", connectClickJs);
+        Assert.Contains("click", connectClickJs);
     }
 
     [Fact]

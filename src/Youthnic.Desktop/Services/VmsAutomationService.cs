@@ -98,7 +98,8 @@ public sealed class VmsAutomationService : IDisposable
         _connectCooldownTicks = 0;
         _loginSubmitted = false;
         _loginSubmittedTicks = 0;
-        SetState(AutomationState.Starting);
+        State = AutomationState.Starting;
+        _dispatcher.BeginInvoke(() => StateChanged?.Invoke(AutomationState.Starting));
         _loopCts = new CancellationTokenSource();
         _ = Task.Run(() => LoopAsync(_loopCts.Token));
     }
@@ -240,10 +241,25 @@ public sealed class VmsAutomationService : IDisposable
 
         if (probe.Username && probe.Password)
         {
-            AppLog.Debug($"VmsAutomation: filling credentials for '{config.Username}'");
-            await EvalOnUiAsync(VmsScripts.FillByName("Username", config.Username)).ConfigureAwait(false);
-            await EvalOnUiAsync(VmsScripts.FillByName("Password", config.Password)).ConfigureAwait(false);
+            var userStatus = await EvalOnUiAsync(VmsScripts.FillByName("Username", config.Username)).ConfigureAwait(false);
+            var uStatus = userStatus?.Trim('"');
+            if (string.Equals(uStatus, "typing", StringComparison.OrdinalIgnoreCase))
+            {
+                RaiseStatus("Entering username…");
+                await Task.Delay(LoginFillToClickDelayMs, ct).ConfigureAwait(false);
+                return;
+            }
 
+            var passStatus = await EvalOnUiAsync(VmsScripts.FillByName("Password", config.Password)).ConfigureAwait(false);
+            var pStatus = passStatus?.Trim('"');
+            if (string.Equals(pStatus, "typing", StringComparison.OrdinalIgnoreCase))
+            {
+                RaiseStatus("Entering password…");
+                await Task.Delay(LoginFillToClickDelayMs, ct).ConfigureAwait(false);
+                return;
+            }
+
+            RaiseStatus("Logging in to VMS…");
             await Task.Delay(LoginFillToClickDelayMs, ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
 
@@ -279,15 +295,20 @@ public sealed class VmsAutomationService : IDisposable
         if (probe.Feed)
         {
             var fillStatus = await EvalOnUiAsync(VmsScripts.FillByPlaceholder("Feed", config.FeedId)).ConfigureAwait(false);
-            if (string.Equals(fillStatus?.Trim('"'), "filled", StringComparison.OrdinalIgnoreCase))
+            var statusStr = fillStatus?.Trim('"');
+            if (string.Equals(statusStr, "typing", StringComparison.OrdinalIgnoreCase))
             {
-                AppLog.Debug($"VmsAutomation: filled feed id '{config.FeedId}' for {_marketplace}");
+                RaiseStatus($"Entering feed ID {config.FeedId}…");
                 await Task.Delay(FeedFillToClickDelayMs, ct).ConfigureAwait(false);
-                ct.ThrowIfCancellationRequested();
+                return;
             }
 
             if (!_connectClicked)
             {
+                RaiseStatus("Connecting camera feed…");
+                await Task.Delay(FeedFillToClickDelayMs, ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+
                 var click = await EvalOnUiAsync(VmsScripts.ClickByName("Connect")).ConfigureAwait(false);
                 if (click?.Contains("clicked", StringComparison.Ordinal) == true)
                 {
@@ -299,7 +320,7 @@ public sealed class VmsAutomationService : IDisposable
             else
             {
                 _connectCooldownTicks++;
-                if (_connectCooldownTicks > 10)
+                if (_connectCooldownTicks > 10 && !probe.FeedFilled)
                 {
                     _connectClicked = false;
                 }

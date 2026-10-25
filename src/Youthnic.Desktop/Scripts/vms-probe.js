@@ -48,7 +48,7 @@
     var passById = document.getElementById('password');
     if (passById && visible(passById)) return passById;
     var pass = document.querySelector('input[type="password"]');
-    if (pass) return pass;
+    if (pass && visible(pass)) return pass;
     var inputs = document.querySelectorAll('input');
     for (var i = 0; i < inputs.length; i++) {
       var el = inputs[i];
@@ -70,11 +70,18 @@
         return el;
       }
     }
+    // Fallback: if connect button is visible, find the visible text input
+    var connectBtn = findButton('Connect');
+    if (connectBtn && visible(connectBtn)) {
+      for (var j = 0; j < inputs.length; j++) {
+        if (visible(inputs[j]) && inputs[j].type !== 'hidden') return inputs[j];
+      }
+    }
     return null;
   }
   function findAwbInput() {
     var byId = document.getElementById('awbInput');
-    if (byId) return byId;
+    if (byId && visible(byId)) return byId;
     var inputs = document.querySelectorAll('input');
     for (var i = 0; i < inputs.length; i++) {
       var el = inputs[i];
@@ -91,6 +98,7 @@
     var els = document.querySelectorAll('button, [role="button"], input[type="submit"], input[type="button"]');
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
+      if (!visible(el)) continue;
       var text = el.tagName === 'INPUT' ? (el.value || '') : (el.innerText || accessibleName(el));
       if (containsIgnoreCase(text, needle)) return el;
     }
@@ -117,11 +125,11 @@
   return JSON.stringify({
     url: location.href,
     ready: document.readyState,
-    username: !!username,
-    password: !!password,
-    feed: !!feed,
-    awb: !!awb,
-    feedFilled: feed ? !!feed.value : false,
+    username: !!(username && visible(username)),
+    password: !!(password && visible(password)),
+    feed: !!(feed && visible(feed)),
+    awb: !!(awb && visible(awb)),
+    feedFilled: feed ? !!(feed.value && feed.value.trim().length > 0) : false,
     loginVisible: !!(loginBtn && visible(loginBtn)),
     loginLoading: loginLoading,
     connectVisible: !!(connectBtn && visible(connectBtn)),

@@ -41,7 +41,7 @@ public static class AppLog
     public static void Info(string message) => Write(Level.Info, message);
 
     public static void Error(string message, Exception? ex = null) =>
-        Write(Level.Error, ex is null ? message : $"{message} | {ex.GetType().Name}: {ex.Message}");
+        Write(Level.Error, ex is null ? message : $"{message} | {ex}");
 
     private static void Write(Level level, string message)
     {

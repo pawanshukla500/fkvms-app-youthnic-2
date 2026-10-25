@@ -83,11 +83,36 @@
                        RenderOptions.BitmapScalingMode="HighQuality"
                        Visibility="Collapsed"/>
 
-                <!-- Placeholder glyph shown inside the image area when no image is available -->
-                <TextBlock x:Name="ImageMissingOverlay" Text="No image"
-                           Foreground="{StaticResource TextMuted}" FontSize="14"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           Visibility="Collapsed" IsHitTestVisible="False"/>
+                <!-- Rich Garment Verification Card shown when image is loading or missing -->
+                <Border x:Name="ImagePlaceholderCard" Visibility="Collapsed"
+                        VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Background="#F8FAFC" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
+                        CornerRadius="10" Padding="20,16" Margin="12" MaxWidth="320">
+                    <StackPanel HorizontalAlignment="Center">
+                        <!-- Big Size Tag -->
+                        <Border x:Name="PlaceholderSizeBadge" Background="#0284C7" CornerRadius="8"
+                                Padding="16,6" HorizontalAlignment="Center" Margin="0,0,0,10">
+                            <TextBlock x:Name="PlaceholderSizeText" Text="SIZE: M" FontSize="16" FontWeight="Bold"
+                                       Foreground="White" HorizontalAlignment="Center"/>
+                        </Border>
+                        <!-- Product SKU / Title snippet -->
+                        <TextBlock x:Name="PlaceholderDesignText" Text="Juhi Mehendi" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center"
+                                   TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,6"/>
+                        <!-- Notice badge to prevent wrong packing -->
+                        <Border Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="6"
+                                Padding="8,4" Margin="0,4,0,0">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="🔍 " FontSize="11" VerticalAlignment="Center"/>
+                                <TextBlock Text="Verify Garment Label &amp; Tag" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#92400E" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock x:Name="PlaceholderSubText" Text="Match SKU &amp; size with physical item"
+                                   FontSize="10" Foreground="{StaticResource TextMuted}"
+                                   HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
 
                 <!-- Multi-Quantity Alert Popup Overlay -->
                 <Border x:Name="MultiQtyOverlay" Visibility="Collapsed"

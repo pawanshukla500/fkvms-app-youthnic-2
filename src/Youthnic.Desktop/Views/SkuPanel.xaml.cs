@@ -127,16 +127,28 @@ public partial class SkuPanel : UserControl
                              ? string.Empty
                              : $"  ·  {Decode(main.Seller)}");
 
-        // Image arrives asynchronously after the result is published; until then the
-        // "No image" placeholder stays up with the names/qty already visible.
+        // Populate garment verification card immediately
         ProductImage.Source = null;
         ProductImage.Visibility = Visibility.Collapsed;
-        ImageMissingOverlay.Visibility = Visibility.Visible;
+
+        var size = ExtractSize(main.Sku);
+        if (!string.IsNullOrWhiteSpace(size))
+        {
+            PlaceholderSizeText.Text = $"SIZE: {size}";
+            PlaceholderSizeBadge.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            PlaceholderSizeBadge.Visibility = Visibility.Collapsed;
+        }
+
+        PlaceholderDesignText.Text = Decode(main.SkuName);
+        ImagePlaceholderCard.Visibility = Visibility.Visible;
 
         AdditionalItemsList.ItemsSource = result.Items.Skip(1)
             .Select(i => new AdditionalItemRow(i.Quantity, i.Sku, Decode(i.SkuName)))
             .ToList();
-        SetState(ImageMissingOverlay);
+        SetState(ImagePlaceholderCard);
         StatusText.Text = $"AWB {result.Awb} — {result.Items.Count} item(s)";
     }
 
@@ -230,7 +242,7 @@ public partial class SkuPanel : UserControl
 
         ProductImage.Source = image;
         ProductImage.Visibility = Visibility.Visible;
-        ImageMissingOverlay.Visibility = Visibility.Collapsed;
+        ImagePlaceholderCard.Visibility = Visibility.Collapsed;
         SetState(ProductImage);
     }
 
@@ -241,7 +253,7 @@ public partial class SkuPanel : UserControl
         AdditionalItemsList.ItemsSource = null;
         ProductImage.Source = null;
         ProductImage.Visibility = Visibility.Collapsed;
-        ImageMissingOverlay.Visibility = Visibility.Collapsed;
+        ImagePlaceholderCard.Visibility = Visibility.Collapsed;
 
         MessageGlyph.Text = glyph;
         MessageTitle.Text = title;
@@ -256,10 +268,35 @@ public partial class SkuPanel : UserControl
         LoadingPanel.Visibility = Equals(active, LoadingPanel) ? Visibility.Visible : Visibility.Collapsed;
         MessagePanel.Visibility = Equals(active, MessagePanel) ? Visibility.Visible : Visibility.Collapsed;
         ProductImage.Visibility = Equals(active, ProductImage) ? Visibility.Visible : Visibility.Collapsed;
-        ImageMissingOverlay.Visibility = Equals(active, ImageMissingOverlay) ? Visibility.Visible : Visibility.Collapsed;
+        ImagePlaceholderCard.Visibility = Equals(active, ImagePlaceholderCard) ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void RetryButton_Click(object sender, RoutedEventArgs e) => RetryRequested?.Invoke();
+
+    private static string? ExtractSize(string sku)
+    {
+        if (string.IsNullOrWhiteSpace(sku)) return null;
+        var s = sku.Trim();
+        var lastUnderscore = s.LastIndexOf('_');
+        if (lastUnderscore > 0 && lastUnderscore < s.Length - 1)
+        {
+            var suffix = s[(lastUnderscore + 1)..].Trim().ToUpperInvariant();
+            if (IsKnownSize(suffix)) return suffix;
+        }
+        var lastHyphen = s.LastIndexOf('-');
+        if (lastHyphen > 0 && lastHyphen < s.Length - 1)
+        {
+            var suffix = s[(lastHyphen + 1)..].Trim().ToUpperInvariant();
+            if (IsKnownSize(suffix)) return suffix;
+        }
+        return null;
+    }
+
+    private static bool IsKnownSize(string s) => s switch
+    {
+        "XS" or "S" or "M" or "L" or "XL" or "XXL" or "2XL" or "3XL" or "4XL" or "5XL" or "6XL" or "FREE" or "FS" => true,
+        _ => false
+    };
 
     private static string FirstNonEmpty(string? preferred, string fallback) =>
         string.IsNullOrWhiteSpace(preferred) ? fallback : preferred;

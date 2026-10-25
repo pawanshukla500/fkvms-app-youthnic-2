@@ -241,6 +241,11 @@ public sealed class LookupCoordinator
 
         _ = _dispatcher.BeginInvoke(() =>
         {
+            lock (_gate)
+            {
+                if (seq != _lastSeq) return; // newer scan superseded callback before dispatch executed
+            }
+
             if (index == 0) ImageReady?.Invoke(seq, image);
             ItemImageReady?.Invoke(seq, index, image);
         });

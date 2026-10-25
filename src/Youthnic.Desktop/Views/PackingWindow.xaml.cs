@@ -28,6 +28,7 @@ public partial class PackingWindow : Window
     private readonly ObservableCollection<ProductCardModel> _modalCards = new();
     private DispatcherTimer? _modalTimer;
     private int _modalCountdown;
+    private long _currentSeq;
 
     private ReleaseInfo? _announcedUpdate;
     private string? _downloadedVersion;
@@ -61,6 +62,7 @@ public partial class PackingWindow : Window
 
         _coordinator.LookupStarted += (seq, awb) =>
         {
+            _currentSeq = seq;
             CloseModal();
             Panel.ShowLoading(seq, awb);
         };
@@ -72,8 +74,8 @@ public partial class PackingWindow : Window
         _coordinator.ImageReady += (seq, image) => Panel.ShowImage(seq, image);
         _coordinator.ItemImageReady += (seq, index, image) =>
         {
-            Panel.SetItemImage(index, image);
-            if (index >= 0 && index < _modalCards.Count)
+            Panel.SetItemImage(seq, index, image);
+            if (seq == _currentSeq && index >= 0 && index < _modalCards.Count)
             {
                 _modalCards[index].Image = image;
             }
@@ -109,6 +111,8 @@ public partial class PackingWindow : Window
 
     private void HandleLookupCompleted(ScanLookupResult result)
     {
+        if (result.Seq != _currentSeq) return; // stale result from older scan
+
         if (result.Outcome != LookupOutcome.Ok || result.Items.Count == 0)
         {
             CloseModal();
@@ -471,6 +475,7 @@ public partial class PackingWindow : Window
         RestartButton.Visibility = Visibility.Collapsed;
         _automation.Stop();
         _automationStarted = false;
+        _currentSeq = 0;
         CloseModal();
         Panel.ShowIdle();
         if (_coreReady && Uri.TryCreate(_config.VmsUrl, UriKind.Absolute, out var uri))

@@ -164,10 +164,12 @@ public partial class SkuPanel : UserControl
     }
 
     /// <summary>
-    /// Updates image for an item by index.
+    /// Updates image for an item by sequence and index. Stale sequences are rejected.
     /// </summary>
-    public void SetItemImage(int index, BitmapImage image)
+    public void SetItemImage(long seq, int index, BitmapImage image)
     {
+        if (seq != _currentSeq) return;
+
         if (index >= 0 && index < ProductCards.Count)
         {
             ProductCards[index].Image = image;
@@ -186,8 +188,7 @@ public partial class SkuPanel : UserControl
     /// </summary>
     public void ShowImage(long seq, BitmapImage image)
     {
-        if (seq != _currentSeq) return;
-        SetItemImage(0, image);
+        SetItemImage(seq, 0, image);
     }
 
     private void ShowWrongMarketplaceAlert(ScanLookupResult result)

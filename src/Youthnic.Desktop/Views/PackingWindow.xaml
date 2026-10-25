@@ -36,7 +36,7 @@
                         Background="White"/>
 
         <!-- Multi-Item Parcel Modal Popup Overlay (Image 4) -->
-        <Grid x:Name="MultiItemModalOverlay" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+        <Grid x:Name="MultiItemModalOverlay" Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" Grid.ColumnSpan="2"
               Background="#CC0B0F19" Visibility="Collapsed" Panel.ZIndex="100"
               MouseDown="MultiItemModalOverlay_MouseDown">
             <Border HorizontalAlignment="Center" VerticalAlignment="Center"

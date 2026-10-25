@@ -71,7 +71,8 @@ Filename: "{app}\Desktop\{#AppExe}"; Description: "Launch {#AppName}"; Flags: no
 
 [Code]
 var
-  DefaultsPage: TInputQueryWizardPage;
+  FkPage: TInputQueryWizardPage;
+  MyPage: TInputQueryWizardPage;
 
 // WebView2 Evergreen Runtime is required. It is preinstalled on most Windows 10/11
 // systems; if missing, point the admin at the official bootstrapper.
@@ -96,35 +97,6 @@ begin
       mbInformation, MB_OK, IDOK);
 end;
 
-procedure InitializeWizard();
-begin
-  // Optional admin page shown after the directory page: first-run defaults for the
-  // desk setup wizard. Everything here is optional; only the lookup API key is a
-  // (desk-to-server) shared secret — needed solely when the hosted lookup server
-  // has key auth enabled, so leave it blank for a desk-side API.
-  DefaultsPage := CreateInputQueryPage(wpSelectComponents,
-    'Desk defaults (optional)',
-    'Pre-fill the setup wizard on each desk',
-    'Leave blank to enter these on each desk instead. Only fill the API key when using the hosted lookup server with key auth.');
-  DefaultsPage.Add('Lookup API URL (e.g. http://127.0.0.1:5080, http://192.168.1.50:5080 or the hosted server URL)', False);
-  DefaultsPage.Add('Suggested Flipkart seller account (ETHNIC JUNCTION - Flipkart)', False);
-  DefaultsPage.Add('Suggested Myntra seller account (ETHNIC JUNCTION - Myntra Youthnic / VB EXPORT - Myntra PPMP — type one)', False);
-  DefaultsPage.Add('Lookup API key (only when the hosted lookup server requires X-Api-Key)', False);
-  // Pre-fill production defaults for Youthnic hosted lookup service
-  DefaultsPage.Values[0] := 'https://flipkart-vms-server2-0.onrender.com';
-  DefaultsPage.Values[1] := 'ETHNIC JUNCTION - Flipkart';
-  DefaultsPage.Values[2] := 'ETHNIC JUNCTION - Myntra Youthnic';
-  DefaultsPage.Values[3] := '237c32350310eb6d69fed654499b55216f7be9f6ab54f537f503f799bb1c0cc1';
-end;
-
-function DefaultsProvided(): Boolean;
-begin
-  Result := (Trim(DefaultsPage.Values[0]) <> '') or
-            (Trim(DefaultsPage.Values[1]) <> '') or
-            (Trim(DefaultsPage.Values[2]) <> '') or
-            (Trim(DefaultsPage.Values[3]) <> '');
-end;
-
 function JsonEscape(const S: String): String;
 begin
   Result := S;
@@ -132,27 +104,210 @@ begin
   StringChangeEx(Result, '"', '\"', True);
 end;
 
+function ExtractJsonValue(const Json, Key, DefaultVal: String): String;
+var
+  P, PEnd: Integer;
+  SearchKey: String;
+begin
+  Result := DefaultVal;
+  SearchKey := '"' + Key + '"';
+  P := Pos(SearchKey, Json);
+  if P = 0 then exit;
+  P := P + Length(SearchKey);
+  while (P <= Length(Json)) and ((Json[P] = ' ') or (Json[P] = ':') or (Json[P] = #9) or (Json[P] = #13) or (Json[P] = #10)) do
+    Inc(P);
+  if (P <= Length(Json)) and (Json[P] = '"') then
+  begin
+    Inc(P);
+    PEnd := P;
+    while (PEnd <= Length(Json)) and (Json[PEnd] <> '"') do
+    begin
+      if (Json[PEnd] = '\') and (PEnd < Length(Json)) then
+        Inc(PEnd);
+      Inc(PEnd);
+    end;
+    Result := Copy(Json, P, PEnd - P);
+  end;
+end;
+
+procedure LoadExistingConfig(var DeskName, FkUser, FkPass, FkFeed, FkSeller, MyUser, MyPass, MyFeed, MySeller, ApiUrl, ApiKey: String);
+var
+  RawJson: AnsiString;
+  ExistingJson: String;
+  Found: Boolean;
+  CommonPath, AppDeskPath, AppPath: String;
+begin
+  DeskName := 'Desk-01';
+  FkUser := 'ethnicfeed8';
+  FkPass := 'Ethnic@123';
+  FkFeed := '9e5195bd';
+  FkSeller := 'ETHNIC JUNCTION - Flipkart';
+
+  MyUser := 'ethnicfeed8';
+  MyPass := 'Ethnic@123';
+  MyFeed := '9e5195bd';
+  MySeller := 'ETHNIC JUNCTION - Myntra Youthnic';
+
+  ApiUrl := 'https://flipkart-vms-server2-0.onrender.com';
+  ApiKey := '237c32350310eb6d69fed654499b55216f7be9f6ab54f537f503f799bb1c0cc1';
+
+  Found := False;
+  ExistingJson := '';
+
+  AppDeskPath := ExpandConstant('{autopf}\Youthnic\PackingDesk\Desktop\desk-config.json');
+  AppPath := ExpandConstant('{autopf}\Youthnic\PackingDesk\desk-config.json');
+  CommonPath := ExpandConstant('{commonappdata}\Youthnic\PackingDesk\install-defaults.json');
+
+  if FileExists(AppDeskPath) and LoadStringFromFile(AppDeskPath, RawJson) then
+  begin
+    ExistingJson := String(RawJson);
+    Found := True;
+  end
+  else if FileExists(AppPath) and LoadStringFromFile(AppPath, RawJson) then
+  begin
+    ExistingJson := String(RawJson);
+    Found := True;
+  end
+  else if FileExists(CommonPath) and LoadStringFromFile(CommonPath, RawJson) then
+  begin
+    ExistingJson := String(RawJson);
+    Found := True;
+  end;
+
+  if Found and (Length(ExistingJson) > 0) then
+  begin
+    DeskName := ExtractJsonValue(ExistingJson, 'deskName', DeskName);
+    FkUser := ExtractJsonValue(ExistingJson, 'flipkartUsername', FkUser);
+    FkPass := ExtractJsonValue(ExistingJson, 'flipkartPassword', FkPass);
+    FkFeed := ExtractJsonValue(ExistingJson, 'flipkartFeedId', FkFeed);
+    FkSeller := ExtractJsonValue(ExistingJson, 'flipkartSeller', FkSeller);
+
+    MyUser := ExtractJsonValue(ExistingJson, 'myntraUsername', MyUser);
+    MyPass := ExtractJsonValue(ExistingJson, 'myntraPassword', MyPass);
+    MyFeed := ExtractJsonValue(ExistingJson, 'myntraFeedId', MyFeed);
+    MySeller := ExtractJsonValue(ExistingJson, 'myntraSeller', MySeller);
+
+    ApiUrl := ExtractJsonValue(ExistingJson, 'lookupApiUrl', ApiUrl);
+    ApiKey := ExtractJsonValue(ExistingJson, 'lookupApiKey', ApiKey);
+  end;
+end;
+
+procedure InitializeWizard();
+var
+  DefDeskName, DefFkUser, DefFkPass, DefFkFeed, DefFkSeller: String;
+  DefMyUser, DefMyPass, DefMyFeed, DefMySeller, DefApiUrl, DefApiKey: String;
+begin
+  LoadExistingConfig(DefDeskName, DefFkUser, DefFkPass, DefFkFeed, DefFkSeller,
+                     DefMyUser, DefMyPass, DefMyFeed, DefMySeller, DefApiUrl, DefApiKey);
+
+  // Page 1: Packing Station Identity & Flipkart VMS Setup
+  FkPage := CreateInputQueryPage(wpSelectComponents,
+    'Packing Station & Flipkart Setup',
+    'Configure station name, camera feed ID, and Flipkart VMS credentials for this PC',
+    'Each packing desk PC requires its own unique Desk Name, camera Feed ID, and credentials:');
+  FkPage.Add('Desk Name / ID (e.g. Desk-01, Desk-02 ... Desk-12):', False);
+  FkPage.Add('Flipkart VMS Username:', False);
+  FkPage.Add('Flipkart VMS Password:', False);
+  FkPage.Add('Flipkart Camera Feed ID (unique per desk station):', False);
+  FkPage.Add('Flipkart Seller Account:', False);
+
+  FkPage.Values[0] := DefDeskName;
+  FkPage.Values[1] := DefFkUser;
+  FkPage.Values[2] := DefFkPass;
+  FkPage.Values[3] := DefFkFeed;
+  FkPage.Values[4] := DefFkSeller;
+
+  // Page 2: Myntra VMS & Lookup API Setup
+  MyPage := CreateInputQueryPage(FkPage.ID,
+    'Myntra VMS & Lookup API Setup',
+    'Configure Myntra VMS credentials, camera feed ID, and Lookup API for this PC',
+    'Enter the Myntra camera Feed ID and VMS credentials for this station:');
+  MyPage.Add('Myntra VMS Username:', False);
+  MyPage.Add('Myntra VMS Password:', False);
+  MyPage.Add('Myntra Camera Feed ID (unique per desk station):', False);
+  MyPage.Add('Myntra Seller Account:', False);
+  MyPage.Add('Lookup API URL (hosted server or local API):', False);
+  MyPage.Add('Lookup API Key (required for hosted server):', False);
+
+  MyPage.Values[0] := DefMyUser;
+  MyPage.Values[1] := DefMyPass;
+  MyPage.Values[2] := DefMyFeed;
+  MyPage.Values[3] := DefMySeller;
+  MyPage.Values[4] := DefApiUrl;
+  MyPage.Values[5] := DefApiKey;
+end;
+
 procedure WriteInstallDefaults();
 var
-  Path, Json: String;
+  CommonPath, AppDeskPath, AppPath, Json: String;
+  DeskName, FkUser, FkPass, FkFeed, FkSeller: String;
+  MyUser, MyPass, MyFeed, MySeller, ApiUrl, ApiKey: String;
 begin
-  if not DefaultsProvided() then exit;
-  Path := ExpandConstant('{commonappdata}\Youthnic\PackingDesk');
-  if not ForceDirectories(Path) then exit;
+  DeskName := Trim(FkPage.Values[0]);
+  if DeskName = '' then DeskName := 'Packing Desk';
+  FkUser := Trim(FkPage.Values[1]);
+  FkPass := FkPage.Values[2];
+  FkFeed := Trim(FkPage.Values[3]);
+  FkSeller := Trim(FkPage.Values[4]);
+
+  MyUser := Trim(MyPage.Values[0]);
+  MyPass := MyPage.Values[1];
+  MyFeed := Trim(MyPage.Values[2]);
+  MySeller := Trim(MyPage.Values[3]);
+  ApiUrl := Trim(MyPage.Values[4]);
+  ApiKey := Trim(MyPage.Values[5]);
+
   Json := '{' +
-    '"lookupApiUrl":"' + JsonEscape(Trim(DefaultsPage.Values[0])) + '",' +
-    '"flipkartSeller":"' + JsonEscape(Trim(DefaultsPage.Values[1])) + '",' +
-    '"myntraSeller":"' + JsonEscape(Trim(DefaultsPage.Values[2])) + '",' +
-    '"lookupApiKey":"' + JsonEscape(Trim(DefaultsPage.Values[3])) + '",' +
+    '"deskName":"' + JsonEscape(DeskName) + '",' +
+    '"lookupApiUrl":"' + JsonEscape(ApiUrl) + '",' +
+    '"lookupApiKey":"' + JsonEscape(ApiKey) + '",' +
     '"flipkartVmsUrl":"https://fkvms.synlabs.io/",' +
-    '"flipkartUsername":"ethnicfeed8",' +
-    '"flipkartPassword":"Ethnic@123",' +
-    '"flipkartFeedId":"9e5195bd",' +
+    '"flipkartUsername":"' + JsonEscape(FkUser) + '",' +
+    '"flipkartPassword":"' + JsonEscape(FkPass) + '",' +
+    '"flipkartFeedId":"' + JsonEscape(FkFeed) + '",' +
+    '"flipkartSeller":"' + JsonEscape(FkSeller) + '",' +
     '"myntraVmsUrl":"https://fkvms.synlabs.io/",' +
-    '"myntraUsername":"ethnicfeed8",' +
-    '"myntraPassword":"Ethnic@123",' +
-    '"myntraFeedId":"9e5195bd"}';
-  SaveStringToFile(Path + '\install-defaults.json', Utf8Encode(Json), False);
+    '"myntraUsername":"' + JsonEscape(MyUser) + '",' +
+    '"myntraPassword":"' + JsonEscape(MyPass) + '",' +
+    '"myntraFeedId":"' + JsonEscape(MyFeed) + '",' +
+    '"myntraSeller":"' + JsonEscape(MySeller) + '",' +
+    '"flipkart":{' +
+      '"vmsUrl":"https://fkvms.synlabs.io/",' +
+      '"username":"' + JsonEscape(FkUser) + '",' +
+      '"password":"' + JsonEscape(FkPass) + '",' +
+      '"feedId":"' + JsonEscape(FkFeed) + '",' +
+      '"sellerAccount":"' + JsonEscape(FkSeller) + '"' +
+    '},' +
+    '"myntra":{' +
+      '"vmsUrl":"https://fkvms.synlabs.io/",' +
+      '"username":"' + JsonEscape(MyUser) + '",' +
+      '"password":"' + JsonEscape(MyPass) + '",' +
+      '"feedId":"' + JsonEscape(MyFeed) + '",' +
+      '"sellerAccount":"' + JsonEscape(MySeller) + '"' +
+    '}' +
+  '}';
+
+  // 1. Write to {commonappdata}\Youthnic\PackingDesk\install-defaults.json
+  CommonPath := ExpandConstant('{commonappdata}\Youthnic\PackingDesk');
+  if ForceDirectories(CommonPath) then
+  begin
+    SaveStringToFile(CommonPath + '\install-defaults.json', Utf8Encode(Json), False);
+    SaveStringToFile(CommonPath + '\desk-config.json', Utf8Encode(Json), False);
+  end;
+
+  // 2. Write to {app}\Desktop\desk-config.json (exact program folder where Youthnic.Desktop.exe lives)
+  AppDeskPath := ExpandConstant('{app}\Desktop');
+  if ForceDirectories(AppDeskPath) then
+  begin
+    SaveStringToFile(AppDeskPath + '\desk-config.json', Utf8Encode(Json), False);
+  end;
+
+  // 3. Write to {app}\desk-config.json
+  AppPath := ExpandConstant('{app}');
+  if ForceDirectories(AppPath) then
+  begin
+    SaveStringToFile(AppPath + '\desk-config.json', Utf8Encode(Json), False);
+  end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

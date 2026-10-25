@@ -95,7 +95,7 @@ public static class SecureConfigStore
         var deviceId = Guid.NewGuid().ToString("N");
         return new DeskOptions(
             DeviceId: deviceId,
-            DeskName: "Packing Desk",
+            DeskName: !string.IsNullOrWhiteSpace(defaults.DeskName) ? defaults.DeskName! : "Packing Desk",
             LookupApiUrl: !string.IsNullOrWhiteSpace(defaults.LookupApiUrl)
                 ? defaults.LookupApiUrl!
                 : DeskOptions.DefaultLookupApiUrl,
@@ -120,36 +120,54 @@ public static class SecureConfigStore
     public static DeskOptions EnsureDefaults(DeskOptions options)
     {
         bool changed = false;
+        var defaults = InstallDefaults.Load();
+
         var deviceId = string.IsNullOrWhiteSpace(options.DeviceId)
             ? (changed = true, Guid.NewGuid().ToString("N")).Item2
             : options.DeviceId;
 
-        var deskName = string.IsNullOrWhiteSpace(options.DeskName)
-            ? (changed = true, "Packing Desk").Item2
+        var deskName = string.IsNullOrWhiteSpace(options.DeskName) || (options.DeskName == "Packing Desk" && !string.IsNullOrWhiteSpace(defaults.DeskName))
+            ? (changed = true, !string.IsNullOrWhiteSpace(defaults.DeskName) ? defaults.DeskName! : "Packing Desk").Item2
             : options.DeskName;
 
         var lookupUrl = string.IsNullOrWhiteSpace(options.LookupApiUrl)
-            ? (changed = true, DeskOptions.DefaultLookupApiUrl).Item2
+            ? (changed = true, !string.IsNullOrWhiteSpace(defaults.LookupApiUrl) ? defaults.LookupApiUrl! : DeskOptions.DefaultLookupApiUrl).Item2
             : options.LookupApiUrl;
 
         var lookupKey = string.IsNullOrWhiteSpace(options.LookupApiKey)
-            ? (changed = true, DeskOptions.DefaultLookupApiKey).Item2
+            ? (changed = true, !string.IsNullOrWhiteSpace(defaults.LookupApiKey) ? defaults.LookupApiKey! : DeskOptions.DefaultLookupApiKey).Item2
             : options.LookupApiKey;
 
         var fk = options.Flipkart ?? new MarketplaceConfig(string.Empty, string.Empty, string.Empty, string.Empty);
-        var fkUrl = string.IsNullOrWhiteSpace(fk.VmsUrl) ? (changed = true, DeskOptions.DefaultFlipkartVmsUrl).Item2 : fk.VmsUrl;
-        var fkUser = string.IsNullOrWhiteSpace(fk.Username) ? (changed = true, DeskOptions.DefaultFlipkartUsername).Item2 : fk.Username;
-        var fkPass = string.IsNullOrWhiteSpace(fk.Password) ? (changed = true, DeskOptions.DefaultFlipkartPassword).Item2 : fk.Password;
-        var fkFeed = string.IsNullOrWhiteSpace(fk.FeedId) ? (changed = true, DeskOptions.DefaultFlipkartFeedId).Item2 : fk.FeedId;
-        var fkSeller = string.IsNullOrWhiteSpace(fk.SellerAccount) ? (changed = true, DeskOptions.DefaultFlipkartSeller).Item2 : fk.SellerAccount;
+        var fkUrl = string.IsNullOrWhiteSpace(fk.VmsUrl) ? (changed = true, !string.IsNullOrWhiteSpace(defaults.FlipkartVmsUrl) ? defaults.FlipkartVmsUrl! : DeskOptions.DefaultFlipkartVmsUrl).Item2 : fk.VmsUrl;
+        var fkUser = string.IsNullOrWhiteSpace(fk.Username) || (fk.Username == DeskOptions.DefaultUsername && !string.IsNullOrWhiteSpace(defaults.FlipkartUsername) && defaults.FlipkartUsername != DeskOptions.DefaultUsername)
+            ? (changed = true, !string.IsNullOrWhiteSpace(defaults.FlipkartUsername) ? defaults.FlipkartUsername! : DeskOptions.DefaultFlipkartUsername).Item2
+            : fk.Username;
+        var fkPass = string.IsNullOrWhiteSpace(fk.Password) || (fk.Password == DeskOptions.DefaultPassword && !string.IsNullOrWhiteSpace(defaults.FlipkartPassword) && defaults.FlipkartPassword != DeskOptions.DefaultPassword)
+            ? (changed = true, !string.IsNullOrWhiteSpace(defaults.FlipkartPassword) ? defaults.FlipkartPassword! : DeskOptions.DefaultFlipkartPassword).Item2
+            : fk.Password;
+        var fkFeed = string.IsNullOrWhiteSpace(fk.FeedId) || (fk.FeedId == DeskOptions.DefaultFeedId && !string.IsNullOrWhiteSpace(defaults.FlipkartFeedId) && defaults.FlipkartFeedId != DeskOptions.DefaultFeedId)
+            ? (changed = true, !string.IsNullOrWhiteSpace(defaults.FlipkartFeedId) ? defaults.FlipkartFeedId! : DeskOptions.DefaultFlipkartFeedId).Item2
+            : fk.FeedId;
+        var fkSeller = string.IsNullOrWhiteSpace(fk.SellerAccount)
+            ? (changed = true, !string.IsNullOrWhiteSpace(defaults.FlipkartSeller) ? defaults.FlipkartSeller! : DeskOptions.DefaultFlipkartSeller).Item2
+            : fk.SellerAccount;
         var newFk = new MarketplaceConfig(fkUrl, fkUser, fkPass, fkFeed, fkSeller);
 
         var my = options.Myntra ?? new MarketplaceConfig(string.Empty, string.Empty, string.Empty, string.Empty);
-        var myUrl = string.IsNullOrWhiteSpace(my.VmsUrl) ? (changed = true, DeskOptions.DefaultMyntraVmsUrl).Item2 : my.VmsUrl;
-        var myUser = string.IsNullOrWhiteSpace(my.Username) ? (changed = true, DeskOptions.DefaultMyntraUsername).Item2 : my.Username;
-        var myPass = string.IsNullOrWhiteSpace(my.Password) ? (changed = true, DeskOptions.DefaultMyntraPassword).Item2 : my.Password;
-        var myFeed = string.IsNullOrWhiteSpace(my.FeedId) ? (changed = true, DeskOptions.DefaultMyntraFeedId).Item2 : my.FeedId;
-        var mySeller = string.IsNullOrWhiteSpace(my.SellerAccount) ? (changed = true, DeskOptions.DefaultMyntraSeller).Item2 : my.SellerAccount;
+        var myUrl = string.IsNullOrWhiteSpace(my.VmsUrl) ? (changed = true, !string.IsNullOrWhiteSpace(defaults.MyntraVmsUrl) ? defaults.MyntraVmsUrl! : DeskOptions.DefaultMyntraVmsUrl).Item2 : my.VmsUrl;
+        var myUser = string.IsNullOrWhiteSpace(my.Username) || (my.Username == DeskOptions.DefaultUsername && !string.IsNullOrWhiteSpace(defaults.MyntraUsername) && defaults.MyntraUsername != DeskOptions.DefaultUsername)
+            ? (changed = true, !string.IsNullOrWhiteSpace(defaults.MyntraUsername) ? defaults.MyntraUsername! : DeskOptions.DefaultMyntraUsername).Item2
+            : my.Username;
+        var myPass = string.IsNullOrWhiteSpace(my.Password) || (my.Password == DeskOptions.DefaultPassword && !string.IsNullOrWhiteSpace(defaults.MyntraPassword) && defaults.MyntraPassword != DeskOptions.DefaultPassword)
+            ? (changed = true, !string.IsNullOrWhiteSpace(defaults.MyntraPassword) ? defaults.MyntraPassword! : DeskOptions.DefaultMyntraPassword).Item2
+            : my.Password;
+        var myFeed = string.IsNullOrWhiteSpace(my.FeedId) || (my.FeedId == DeskOptions.DefaultFeedId && !string.IsNullOrWhiteSpace(defaults.MyntraFeedId) && defaults.MyntraFeedId != DeskOptions.DefaultFeedId)
+            ? (changed = true, !string.IsNullOrWhiteSpace(defaults.MyntraFeedId) ? defaults.MyntraFeedId! : DeskOptions.DefaultMyntraFeedId).Item2
+            : my.FeedId;
+        var mySeller = string.IsNullOrWhiteSpace(my.SellerAccount)
+            ? (changed = true, !string.IsNullOrWhiteSpace(defaults.MyntraSeller) ? defaults.MyntraSeller! : DeskOptions.DefaultMyntraSeller).Item2
+            : my.SellerAccount;
         var newMy = new MarketplaceConfig(myUrl, myUser, myPass, myFeed, mySeller);
 
         if (!options.SetupCompleted) changed = true;
@@ -189,7 +207,7 @@ public static class SecureConfigStore
         Directory.CreateDirectory(RootDir);
         File.WriteAllText(DeviceMarkerFile, deviceId, Encoding.UTF8);
 
-        // Save DPAPI encrypted blob
+        // 1. Save DPAPI encrypted blob in LocalAppData
         try
         {
             var plain = JsonSerializer.SerializeToUtf8Bytes(toSave, JsonOptions);
@@ -201,15 +219,42 @@ public static class SecureConfigStore
             AppLog.Error("SecureConfigStore: DPAPI save failed", ex);
         }
 
-        // Save plain JSON local configuration for persistence & recovery across PC reboots
+        // 2. Save plain JSON local configuration for persistence & recovery across PC reboots
+        var readableJson = JsonSerializer.Serialize(toSave, ReadableJsonOptions);
         try
         {
-            var readableJson = JsonSerializer.Serialize(toSave, ReadableJsonOptions);
             File.WriteAllText(LocalConfigFile, readableJson, Encoding.UTF8);
         }
         catch (Exception ex)
         {
             AppLog.Error("SecureConfigStore: local config save failed", ex);
+        }
+
+        // 3. Save to application install directory (desk-config.json) if writable
+        try
+        {
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            var appConfigFile = Path.Combine(appDir, "desk-config.json");
+            File.WriteAllText(appConfigFile, readableJson, Encoding.UTF8);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug("SecureConfigStore: saving to app directory skipped (normal for non-admin): " + ex.Message);
+        }
+
+        // 4. Save to ProgramData install-defaults.json & desk-config.json for machine-wide availability if writable
+        try
+        {
+            var programDataDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "Youthnic", "PackingDesk");
+            Directory.CreateDirectory(programDataDir);
+            File.WriteAllText(Path.Combine(programDataDir, "desk-config.json"), readableJson, Encoding.UTF8);
+            File.WriteAllText(Path.Combine(programDataDir, "install-defaults.json"), readableJson, Encoding.UTF8);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug("SecureConfigStore: saving to ProgramData skipped (normal for non-admin): " + ex.Message);
         }
     }
 

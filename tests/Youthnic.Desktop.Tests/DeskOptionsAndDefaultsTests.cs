@@ -240,4 +240,97 @@ public class DeskOptionsAndDefaultsTests
         Assert.Equal("myfeed", defaults.MyntraFeedId);
         Assert.Equal("https://myvms.com", defaults.MyntraVmsUrl);
     }
+
+    [Fact]
+    public void InstallDefaults_ParsesDeskNameAndAllFieldsFromFlatJson()
+    {
+        const string json = """
+        {
+            "deskName": "Desk-07",
+            "lookupApiUrl": "https://lookup.youthnic.com",
+            "lookupApiKey": "api-key-desk-07",
+            "flipkartSeller": "ETHNIC JUNCTION - Flipkart",
+            "myntraSeller": "ETHNIC JUNCTION - Myntra Youthnic",
+            "flipkartUsername": "desk7fk",
+            "flipkartPassword": "PasswordFk7",
+            "flipkartFeedId": "feed-fk-007",
+            "flipkartVmsUrl": "https://fkvms.synlabs.io/",
+            "myntraUsername": "desk7my",
+            "myntraPassword": "PasswordMy7",
+            "myntraFeedId": "feed-my-007",
+            "myntraVmsUrl": "https://fkvms.synlabs.io/"
+        }
+        """;
+
+        var defaults = InstallDefaults.Parse(json);
+        Assert.False(defaults.IsEmpty());
+        Assert.Equal("Desk-07", defaults.DeskName);
+        Assert.Equal("https://lookup.youthnic.com", defaults.LookupApiUrl);
+        Assert.Equal("api-key-desk-07", defaults.LookupApiKey);
+        Assert.Equal("desk7fk", defaults.FlipkartUsername);
+        Assert.Equal("PasswordFk7", defaults.FlipkartPassword);
+        Assert.Equal("feed-fk-007", defaults.FlipkartFeedId);
+        Assert.Equal("desk7my", defaults.MyntraUsername);
+        Assert.Equal("PasswordMy7", defaults.MyntraPassword);
+        Assert.Equal("feed-my-007", defaults.MyntraFeedId);
+    }
+
+    [Fact]
+    public void InstallDefaults_ParsesNestedJsonStructure()
+    {
+        const string json = """
+        {
+            "deskName": "Desk-09",
+            "lookupApiUrl": "https://lookup.synlabs.io",
+            "lookupApiKey": "secret-999",
+            "flipkart": {
+                "vmsUrl": "https://fkvms.synlabs.io/",
+                "username": "operator_fk_09",
+                "password": "Pass@Desk09_FK",
+                "feedId": "feed_fk_99",
+                "sellerAccount": "ETHNIC JUNCTION - Flipkart"
+            },
+            "myntra": {
+                "vmsUrl": "https://fkvms.synlabs.io/",
+                "username": "operator_my_09",
+                "password": "Pass@Desk09_MY",
+                "feedId": "feed_my_99",
+                "sellerAccount": "ETHNIC JUNCTION - Myntra Youthnic"
+            }
+        }
+        """;
+
+        var defaults = InstallDefaults.Parse(json);
+        Assert.False(defaults.IsEmpty());
+        Assert.Equal("Desk-09", defaults.DeskName);
+        Assert.Equal("https://lookup.synlabs.io", defaults.LookupApiUrl);
+        Assert.Equal("secret-999", defaults.LookupApiKey);
+        Assert.Equal("operator_fk_09", defaults.FlipkartUsername);
+        Assert.Equal("Pass@Desk09_FK", defaults.FlipkartPassword);
+        Assert.Equal("feed_fk_99", defaults.FlipkartFeedId);
+        Assert.Equal("ETHNIC JUNCTION - Flipkart", defaults.FlipkartSeller);
+        Assert.Equal("operator_my_09", defaults.MyntraUsername);
+        Assert.Equal("Pass@Desk09_MY", defaults.MyntraPassword);
+        Assert.Equal("feed_my_99", defaults.MyntraFeedId);
+        Assert.Equal("ETHNIC JUNCTION - Myntra Youthnic", defaults.MyntraSeller);
+    }
+
+    [Fact]
+    public void CreateDefaultOptions_UsesDeskNameFromInstallDefaults()
+    {
+        var defaults = new InstallDefaults(
+            LookupApiUrl: "https://api.test",
+            FlipkartSeller: "FK Seller",
+            MyntraSeller: "MY Seller",
+            LookupApiKey: "key-1",
+            FlipkartUsername: "user-1",
+            FlipkartPassword: "pass-1",
+            FlipkartFeedId: "feed-1",
+            DeskName: "Desk-12");
+
+        var options = SecureConfigStore.CreateDefaultOptions(defaults);
+        Assert.Equal("Desk-12", options.DeskName);
+        Assert.Equal("user-1", options.Flipkart.Username);
+        Assert.Equal("feed-1", options.Flipkart.FeedId);
+    }
 }

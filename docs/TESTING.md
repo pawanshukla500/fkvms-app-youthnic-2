@@ -7,6 +7,8 @@ Legend: ✅ verified in this environment · ⏳ requires on-site/real-hardware a
 | Test | Result |
 |---|---|
 | Auto-fill setup-time credentials: username (`ethnicfeed8`), password (`Ethnic@123`), feed ID (`9e5195bd`) auto-seeded for both Flipkart and Myntra | ✅ verified (auto-seeded & unit-tested) |
+| Human-like cadence typing (`__yTypeHuman` with realistic 35–65ms per-char jitter, keydown/keypress/input/keyup events) to prevent bot detection | ✅ implemented & unit-tested in `VmsScripts` |
+| Auto-connect feed ID: types Feed ID with human cadence, natural pause, and auto-submits Connect button | ✅ implemented & unit-tested |
 | Both Flipkart & Myntra marketplace selection cards active and showing "Configured ✓" on first run | ✅ verified in `SelectionWindow` & `SecureConfigStore` |
 | Progressive image rendering while scanning: SKU text renders immediately, product photo streams in asynchronously without UI blockage | ✅ verified with `LookupCoordinator` and `SkuPanel` |
 | Multi-CDN image fallback: iterates candidate URLs when item has multiple photo links | ✅ verified in `LookupCoordinator` |

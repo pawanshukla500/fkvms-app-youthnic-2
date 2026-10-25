@@ -7,7 +7,8 @@ public class ScanObserverTests
 {
     [Theory]
     [InlineData("{\"type\":\"scan\",\"awb\":\"FMPC12345678\"}", "FMPC12345678")]
-    [InlineData("{\"type\":\"scan\",\"awb\":\"  MYNT9876543210  \"}", "MYNT9876543210")]
+    [InlineData("{\"type\":\"scan\",\"awb\":\"fmpc6678851344\"}", "FMPC6678851344")]
+    [InlineData("{\"type\":\"scan\",\"awb\":\"  mynt9876543210  \"}", "MYNT9876543210")]
     [InlineData("{\"type\":\"scan\",\"awb\":\"1234\"}", "1234")]
     public void TryParseScanMessage_ValidScan_ReturnsTrueAndTrimmedAwb(string json, string expectedAwb)
     {
@@ -40,5 +41,6 @@ public class ScanObserverTests
         Assert.NotNull(script);
         Assert.Contains("window.chrome.webview.postMessage", script);
         Assert.Contains("keydown", script);
+        Assert.Contains("ensureScanBarFocus", script);
     }
 }

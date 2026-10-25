@@ -85,14 +85,14 @@ public sealed class LookupCoordinator
     /// <summary>Called from the WebView2 WebMessageReceived handler on the UI thread.</summary>
     public void HandleScan(string awb)
     {
-        var trimmed = (awb ?? string.Empty).Trim();
+        var trimmed = (awb ?? string.Empty).Trim().ToUpperInvariant();
         if (trimmed.Length < 4) return;
 
         lock (_gate)
         {
             var now = DateTime.UtcNow;
             if (_hasLastScan &&
-                string.Equals(_lastAwb, trimmed, StringComparison.Ordinal) &&
+                string.Equals(_lastAwb, trimmed, StringComparison.OrdinalIgnoreCase) &&
                 now - _lastScanAtUtc < DuplicateWindow)
             {
                 AppLog.Debug($"LookupCoordinator: duplicate scan '{trimmed}' within window, ignored");

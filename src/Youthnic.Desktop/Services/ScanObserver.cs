@@ -63,7 +63,7 @@ public static class ScanObserver
             if (string.IsNullOrWhiteSpace(value)) return false;
             var trimmed = value.Trim();
             if (trimmed.Length < 4) return false;
-            awb = trimmed;
+            awb = trimmed.ToUpperInvariant();
             return true;
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException)

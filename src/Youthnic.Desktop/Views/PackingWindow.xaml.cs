@@ -25,10 +25,8 @@ public partial class PackingWindow : Window
     private readonly VmsAutomationService _automation;
     private readonly UpdateChecker _updateChecker;
 
-    private readonly ObservableCollection<ProductCardModel> _modalCards = new();
-    private DispatcherTimer? _modalTimer;
+    private MultiItemModalWindow? _modalWindow;
     private DispatcherTimer? _maintenanceTimer;
-    private int _modalCountdown;
     private long _currentSeq;
 
     private int _shiftPackCount;
@@ -49,8 +47,6 @@ public partial class PackingWindow : Window
         _config = options.For(marketplace);
 
         InitializeComponent();
-
-        ModalProductItemsControl.ItemsSource = _modalCards;
 
         Title = $"Youthnic Packing Desk — {_marketplace}  ·  v{UpdateChecker.CurrentVersion()}";
         Panel.SetMarketplace(_marketplace);
@@ -79,9 +75,9 @@ public partial class PackingWindow : Window
         _coordinator.ItemImageReady += (seq, index, image) =>
         {
             Panel.SetItemImage(seq, index, image);
-            if (seq == _currentSeq && index >= 0 && index < _modalCards.Count)
+            if (seq == _currentSeq)
             {
-                _modalCards[index].Image = image;
+                _modalWindow?.SetItemImage(index, image);
             }
         };
         Panel.RetryRequested += () => _coordinator.RetryLast();
@@ -105,6 +101,8 @@ public partial class PackingWindow : Window
 
         _updateChecker = new UpdateChecker(Dispatcher);
         _updateChecker.UpdateAvailable += OnUpdateAvailable;
+
+        Activated += async (_, _) => await FocusScanBarAsync();
 
         Loaded += async (_, _) =>
         {
@@ -145,65 +143,59 @@ public partial class PackingWindow : Window
 
     private void ShowMultiItemModal(ScanLookupResult result)
     {
-        _modalCards.Clear();
-        for (var i = 0; i < result.Items.Count; i++)
+        CloseModal();
+        try
         {
-            var card = ProductCardModel.FromLookupItem(result.Items[i], i);
-            _modalCards.Add(card);
+            _modalWindow = new MultiItemModalWindow(this, result, onDismissed: () =>
+            {
+                _modalWindow = null;
+                _ = FocusScanBarAsync();
+            });
+            _modalWindow.Show();
         }
-
-        var totalUnits = result.Items.Sum(i => i.Quantity);
-        ModalBannerTitle.Text = $"MULTI-ITEM PARCEL — PACK ALL {totalUnits}";
-        ModalBannerSubtitle.Text = $"{totalUnits} items · {result.Items.Count} different SKUs · {result.Awb}";
-
-        _modalCountdown = 5;
-        ModalCountdownText.Text = $"Closes in {_modalCountdown}s · click outside or press Esc to close now";
-
-        _modalTimer?.Stop();
-        _modalTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _modalTimer.Tick += (_, _) =>
+        catch (Exception ex)
         {
-            _modalCountdown--;
-            if (_modalCountdown <= 0)
-            {
-                CloseModal();
-            }
-            else
-            {
-                ModalCountdownText.Text = $"Closes in {_modalCountdown}s · click outside or press Esc to close now";
-            }
-        };
-        _modalTimer.Start();
-
-        MultiItemModalOverlay.Visibility = Visibility.Visible;
+            AppLog.Error("PackingWindow: Failed to show MultiItemModalWindow", ex);
+        }
     }
 
     private void CloseModal()
     {
-        _modalTimer?.Stop();
-        _modalTimer = null;
-        if (MultiItemModalOverlay.Visibility != Visibility.Collapsed)
+        if (_modalWindow != null)
         {
-            MultiItemModalOverlay.Visibility = Visibility.Collapsed;
+            try
+            {
+                _modalWindow.Close();
+            }
+            catch
+            {
+                // ignore
+            }
+            _modalWindow = null;
         }
-    }
-
-    private void CloseModal_Click(object sender, RoutedEventArgs e) => CloseModal();
-
-    private void MultiItemModalOverlay_MouseDown(object sender, MouseButtonEventArgs e) => CloseModal();
-
-    private void ModalContent_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        // Prevent click inside modal dialog from closing it
-        e.Handled = true;
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && MultiItemModalOverlay.Visibility == Visibility.Visible)
+        if (e.Key == Key.Escape && _modalWindow != null)
         {
             CloseModal();
             e.Handled = true;
+        }
+    }
+
+    public async Task FocusScanBarAsync()
+    {
+        try
+        {
+            if (_coreReady && WebView.CoreWebView2 != null)
+            {
+                await WebView.ExecuteScriptAsync(VmsScripts.FocusAwbInput());
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Info($"PackingWindow: FocusScanBarAsync: {ex.Message}");
         }
     }
 
@@ -447,6 +439,7 @@ public partial class PackingWindow : Window
         {
             StatusText.Text = string.Empty;
             RestartButton.Visibility = Visibility.Collapsed;
+            _ = FocusScanBarAsync();
         }
     }
 
@@ -518,7 +511,7 @@ public partial class PackingWindow : Window
         }
 
         _downloadCts?.Cancel();
-        _modalTimer?.Stop();
+        CloseModal();
         _maintenanceTimer?.Stop();
         _updateChecker.Stop();
         _updateChecker.Dispose();

@@ -84,4 +84,18 @@ public class LookupCacheTests
             cache.Set($"flipkart:AWB{i}", Response());
         Assert.True(cache.Count <= LookupApiOptions.CacheSizeLimit);
     }
+
+    [Fact]
+    public void KeyFor_NormalizesMarketplaceToLowerAndTrackingAndSellerToUpper()
+    {
+        var key1 = LookupCache.KeyFor("FLIPKART", "fmpc6678851344");
+        var key2 = LookupCache.KeyFor("flipkart", "FMPC6678851344");
+        Assert.Equal("flipkart:FMPC6678851344", key1);
+        Assert.Equal(key1, key2);
+
+        var keyWithSeller1 = LookupCache.KeyFor("Flipkart", "fmpc6678851344", "ethnic junction - flipkart");
+        var keyWithSeller2 = LookupCache.KeyFor("FLIPKART", "FMPC6678851344", "ETHNIC JUNCTION - FLIPKART");
+        Assert.Equal("flipkart:FMPC6678851344@ETHNIC JUNCTION - FLIPKART", keyWithSeller1);
+        Assert.Equal(keyWithSeller1, keyWithSeller2);
+    }
 }

@@ -102,4 +102,14 @@ public class VmsAutomationAndScriptTests
         Assert.False(packingProbe.OnLogin);
         Assert.True(packingProbe.OnOperatorVms);
     }
+
+    [Fact]
+    public void VmsScripts_FocusAwbInput_GeneratesFocusAndSelectScript()
+    {
+        var js = VmsScripts.FocusAwbInput();
+        Assert.NotNull(js);
+        Assert.Contains("__yFindAwbInput", js);
+        Assert.Contains("el.focus()", js);
+        Assert.Contains("el.select()", js);
+    }
 }

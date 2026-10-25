@@ -50,7 +50,7 @@ public static class LookupQueryBuilder
         MappingValidator.ValidateMapping(m);
         var orders = TableIdent(m.SchemaOrders, m.OrdersTable);
         var sellerCol = string.IsNullOrWhiteSpace(m.ColSeller) ? "NULL" : Quoted(m.ColSeller);
-        return $"SELECT o.{sellerCol} FROM {orders} o WHERE o.{Quoted(m.ColTracking)} = upper($1) LIMIT 1;";
+        return $"SELECT o.{sellerCol} FROM {orders} o WHERE (o.{Quoted(m.ColTracking)} = upper($1) OR upper(o.{Quoted(m.ColTracking)}) = upper($1)) LIMIT 1;";
     }
 
     // ---------------------------------------------------------------- items-table mode
@@ -82,7 +82,7 @@ public static class LookupQueryBuilder
             sb.Append(" LEFT JOIN ").Append(TableIdent(m.SchemaOrders, m.ImageTable))
               .Append(" im ON (im.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = upper(oi.").Append(Quoted(m.OrderItemsSkuColumn))
               .Append(") OR im.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = oi.").Append(Quoted(m.OrderItemsSkuColumn)).Append(")");
-        sb.Append(" WHERE o.").Append(Quoted(m.ColTracking)).Append(" = upper($1)");
+        sb.Append(" WHERE (o.").Append(Quoted(m.ColTracking)).Append(" = upper($1) OR upper(o.").Append(Quoted(m.ColTracking)).Append(") = upper($1))");
         usesMarketplaceParameter = !string.IsNullOrWhiteSpace(m.ColMarketplace);
         if (usesMarketplaceParameter)
             sb.Append(" AND lower(o.").Append(Quoted(m.ColMarketplace)).Append(") = lower($2)");
@@ -132,7 +132,7 @@ public static class LookupQueryBuilder
             sb.Append(" LEFT JOIN ").Append(TableIdent(m.SchemaOrders, m.ImageTable))
               .Append(" im ON (im.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = upper(").Append(JsonSkuExpression)
               .Append(") OR im.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = ").Append(JsonSkuExpression).Append(")");
-        sb.Append(" WHERE o.").Append(Quoted(m.ColTracking)).Append(" = upper($1)");
+        sb.Append(" WHERE (o.").Append(Quoted(m.ColTracking)).Append(" = upper($1) OR upper(o.").Append(Quoted(m.ColTracking)).Append(") = upper($1))");
         usesMarketplaceParameter = !string.IsNullOrWhiteSpace(m.ColMarketplace);
         if (usesMarketplaceParameter)
             sb.Append(" AND lower(o.").Append(Quoted(m.ColMarketplace)).Append(") = lower($2)");

@@ -31,7 +31,11 @@ public sealed class LookupApiClient : IDisposable
                 return _client;
 
             _client?.Dispose();
-            var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) };
+            var handler = new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                ConnectTimeout = TimeSpan.FromSeconds(3)
+            };
             _client = new HttpClient(handler) { Timeout = Timeout };
             _clientBaseUrl = baseUrl;
             return _client;
@@ -62,7 +66,7 @@ public sealed class LookupApiClient : IDisposable
             response = await client.SendAsync(request, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
         }
-        catch (HttpRequestException ex) when (!ct.IsCancellationRequested)
+        catch (Exception ex) when (ex is HttpRequestException or TimeoutException or TaskCanceledException && !ct.IsCancellationRequested)
         {
             // Fast retry on transient warehouse Wi-Fi glitch / connection reset
             AppLog.Debug($"LookupApiClient: transient network blip for '{awb}', retrying: {ex.Message}");

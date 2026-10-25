@@ -212,7 +212,7 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
                 PendingSync = true,
                 Hint = NotFoundHint,
             };
-            cache.Set(key, notFound);
+            cache.Set(key, notFound, TimeSpan.FromSeconds(options.NegativeCacheSeconds), sliding: false);
             return notFound;
         }
 

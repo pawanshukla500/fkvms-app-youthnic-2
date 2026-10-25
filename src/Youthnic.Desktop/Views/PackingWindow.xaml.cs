@@ -16,8 +16,8 @@ public partial class PackingWindow : Window
     private const int ReleaseNotesPreviewChars = 600;
 
     private readonly Marketplace _marketplace;
-    private readonly MarketplaceConfig _config;
-    private readonly DeskOptions _options;
+    private MarketplaceConfig _config;
+    private DeskOptions _options;
 
     private readonly LookupApiClient _apiClient = new();
     private readonly ImageCache _imageCache = new();
@@ -48,7 +48,7 @@ public partial class PackingWindow : Window
 
         InitializeComponent();
 
-        Title = $"Youthnic Packing Desk — {_marketplace}  ·  v{UpdateChecker.CurrentVersion()}";
+        Title = $"Youthnic Packing Desk — {_marketplace} ({_options.DeskName})  ·  v{UpdateChecker.CurrentVersion()}";
         Panel.SetMarketplace(_marketplace);
 
         _coordinator = new LookupCoordinator(
@@ -539,6 +539,18 @@ public partial class PackingWindow : Window
         catch (Exception ex)
         {
             AppLog.Info($"PackingWindow: shift maintenance warning: {ex.Message}");
+        }
+    }
+
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var wizard = new SetupWizard(_options) { Owner = this };
+        if (wizard.ShowDialog() == true)
+        {
+            _options = SecureConfigStore.Load();
+            _config = _options.For(_marketplace);
+            Title = $"Youthnic Packing Desk — {_marketplace} ({_options.DeskName})  ·  v{UpdateChecker.CurrentVersion()}";
+            StatusText.Text = $"Settings updated: {_options.DeskName} (User: {_config.Username}, Feed: {_config.FeedId})";
         }
     }
 

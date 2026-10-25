@@ -19,6 +19,8 @@ public partial class SetupWizard : Window
 
     private readonly LookupApiClient _apiClient = new();
     private int _step;
+    private bool _fkPassVisible;
+    private bool _myPassVisible;
 
     public SetupWizard(DeskOptions? existing)
     {
@@ -30,7 +32,11 @@ public partial class SetupWizard : Window
         DeviceIdBox.Text = string.IsNullOrWhiteSpace(options.DeviceId)
             ? Guid.NewGuid().ToString("N")
             : options.DeviceId;
-        DeskNameBox.Text = !string.IsNullOrWhiteSpace(options.DeskName) ? options.DeskName : "Packing Desk";
+        DeskNameBox.Text = !string.IsNullOrWhiteSpace(options.DeskName) && options.DeskName != "Packing Desk"
+            ? options.DeskName
+            : !string.IsNullOrWhiteSpace(defaults.DeskName)
+                ? defaults.DeskName!
+                : "Packing Desk";
         LookupUrlBox.Text = !string.IsNullOrWhiteSpace(options.LookupApiUrl)
             ? options.LookupApiUrl
             : !string.IsNullOrWhiteSpace(defaults.LookupApiUrl)
@@ -52,11 +58,13 @@ public partial class SetupWizard : Window
             : !string.IsNullOrWhiteSpace(defaults.FlipkartUsername)
                 ? defaults.FlipkartUsername!
                 : DeskOptions.DefaultFlipkartUsername;
-        FkPassBox.Password = !string.IsNullOrWhiteSpace(options.Flipkart.Password)
+        var fkPass = !string.IsNullOrWhiteSpace(options.Flipkart.Password)
             ? options.Flipkart.Password
             : !string.IsNullOrWhiteSpace(defaults.FlipkartPassword)
                 ? defaults.FlipkartPassword!
                 : DeskOptions.DefaultFlipkartPassword;
+        FkPassBox.Password = fkPass;
+        FkPassTextBox.Text = fkPass;
         FkFeedBox.Text = !string.IsNullOrWhiteSpace(options.Flipkart.FeedId)
             ? options.Flipkart.FeedId
             : !string.IsNullOrWhiteSpace(defaults.FlipkartFeedId)
@@ -78,11 +86,13 @@ public partial class SetupWizard : Window
             : !string.IsNullOrWhiteSpace(defaults.MyntraUsername)
                 ? defaults.MyntraUsername!
                 : DeskOptions.DefaultMyntraUsername;
-        MyPassBox.Password = !string.IsNullOrWhiteSpace(options.Myntra.Password)
+        var myPass = !string.IsNullOrWhiteSpace(options.Myntra.Password)
             ? options.Myntra.Password
             : !string.IsNullOrWhiteSpace(defaults.MyntraPassword)
                 ? defaults.MyntraPassword!
                 : DeskOptions.DefaultMyntraPassword;
+        MyPassBox.Password = myPass;
+        MyPassTextBox.Text = myPass;
         MyFeedBox.Text = !string.IsNullOrWhiteSpace(options.Myntra.FeedId)
             ? options.Myntra.FeedId
             : !string.IsNullOrWhiteSpace(defaults.MyntraFeedId)
@@ -96,6 +106,54 @@ public partial class SetupWizard : Window
 
         ShowStep(0);
     }
+
+    private void FkTogglePass_Click(object sender, RoutedEventArgs e)
+    {
+        _fkPassVisible = !_fkPassVisible;
+        if (_fkPassVisible)
+        {
+            FkPassTextBox.Text = FkPassBox.Password;
+            FkPassBox.Visibility = Visibility.Collapsed;
+            FkPassTextBox.Visibility = Visibility.Visible;
+            FkTogglePassButton.Content = "👁 Hide";
+            FkPassTextBox.Focus();
+        }
+        else
+        {
+            FkPassBox.Password = FkPassTextBox.Text;
+            FkPassTextBox.Visibility = Visibility.Collapsed;
+            FkPassBox.Visibility = Visibility.Visible;
+            FkTogglePassButton.Content = "👁 Show";
+            FkPassBox.Focus();
+        }
+    }
+
+    private void MyTogglePass_Click(object sender, RoutedEventArgs e)
+    {
+        _myPassVisible = !_myPassVisible;
+        if (_myPassVisible)
+        {
+            MyPassTextBox.Text = MyPassBox.Password;
+            MyPassBox.Visibility = Visibility.Collapsed;
+            MyPassTextBox.Visibility = Visibility.Visible;
+            MyTogglePassButton.Content = "👁 Hide";
+            MyPassTextBox.Focus();
+        }
+        else
+        {
+            MyPassBox.Password = MyPassTextBox.Text;
+            MyPassTextBox.Visibility = Visibility.Collapsed;
+            MyPassBox.Visibility = Visibility.Visible;
+            MyTogglePassButton.Content = "👁 Show";
+            MyPassBox.Focus();
+        }
+    }
+
+    private string GetFkPassword() =>
+        _fkPassVisible ? FkPassTextBox.Text : FkPassBox.Password;
+
+    private string GetMyPassword() =>
+        _myPassVisible ? MyPassTextBox.Text : MyPassBox.Password;
 
     private void ShowStep(int step)
     {
@@ -148,7 +206,7 @@ public partial class SetupWizard : Window
                     return Fail("Enter the Flipkart VMS URL (https://…).", FkUrlBox);
                 }
                 if (string.IsNullOrWhiteSpace(FkUserBox.Text)) return Fail("Enter the Flipkart VMS username.", FkUserBox);
-                if (FkPassBox.Password.Length == 0) return Fail("Enter the Flipkart VMS password.", FkPassBox);
+                if (GetFkPassword().Length == 0) return Fail("Enter the Flipkart VMS password.", _fkPassVisible ? FkPassTextBox : FkPassBox);
                 if (string.IsNullOrWhiteSpace(FkFeedBox.Text)) return Fail("Enter the Flipkart feed id.", FkFeedBox);
                 return true;
 
@@ -160,7 +218,7 @@ public partial class SetupWizard : Window
                     return Fail("Enter a valid Myntra VMS URL, or leave it empty to skip.", MyUrlBox);
                 }
                 if (string.IsNullOrWhiteSpace(MyUserBox.Text)) return Fail("Enter the Myntra VMS username.", MyUserBox);
-                if (MyPassBox.Password.Length == 0) return Fail("Enter the Myntra VMS password.", MyPassBox);
+                if (GetMyPassword().Length == 0) return Fail("Enter the Myntra VMS password.", _myPassVisible ? MyPassTextBox : MyPassBox);
                 if (string.IsNullOrWhiteSpace(MyFeedBox.Text)) return Fail("Enter the Myntra feed id.", MyFeedBox);
                 return true;
 
@@ -238,7 +296,7 @@ public partial class SetupWizard : Window
             Flipkart: new MarketplaceConfig(
                 FkUrlBox.Text.Trim(),
                 FkUserBox.Text.Trim(),
-                FkPassBox.Password,
+                GetFkPassword(),
                 FkFeedBox.Text.Trim(),
                 FkSellerBox.Text.Trim()),
             Myntra: myntraSkipped
@@ -246,7 +304,7 @@ public partial class SetupWizard : Window
                 : new MarketplaceConfig(
                     MyUrlBox.Text.Trim(),
                     MyUserBox.Text.Trim(),
-                    MyPassBox.Password,
+                    GetMyPassword(),
                     MyFeedBox.Text.Trim(),
                     MySellerBox.Text.Trim()),
             SetupCompleted: true);

@@ -57,7 +57,16 @@
                     <TextBlock Text="Username" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,14,0,0"/>
                     <TextBox x:Name="FkUserBox" Margin="0,6,0,0" Padding="8,6"/>
                     <TextBlock Text="Password" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,14,0,0"/>
-                    <PasswordBox x:Name="FkPassBox" Margin="0,6,0,0" Padding="8,6"/>
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <PasswordBox x:Name="FkPassBox" Grid.Column="0" Padding="8,6"/>
+                        <TextBox x:Name="FkPassTextBox" Grid.Column="0" Padding="8,6" Visibility="Collapsed"/>
+                        <Button x:Name="FkTogglePassButton" Grid.Column="1" Content="👁 Show" Margin="6,0,0,0"
+                                Padding="10,4" Style="{StaticResource SecondaryButton}" Click="FkTogglePass_Click"/>
+                    </Grid>
                     <TextBlock Text="Feed ID" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,14,0,0"/>
                     <TextBox x:Name="FkFeedBox" Margin="0,6,0,0" Padding="8,6"/>
                     <TextBlock Text="The feed id this desk connects to (usually scanned from the VMS station sheet)."
@@ -87,7 +96,16 @@
                     <TextBlock Text="Username" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,14,0,0"/>
                     <TextBox x:Name="MyUserBox" Margin="0,6,0,0" Padding="8,6"/>
                     <TextBlock Text="Password" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,14,0,0"/>
-                    <PasswordBox x:Name="MyPassBox" Margin="0,6,0,0" Padding="8,6"/>
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <PasswordBox x:Name="MyPassBox" Grid.Column="0" Padding="8,6"/>
+                        <TextBox x:Name="MyPassTextBox" Grid.Column="0" Padding="8,6" Visibility="Collapsed"/>
+                        <Button x:Name="MyTogglePassButton" Grid.Column="1" Content="👁 Show" Margin="6,0,0,0"
+                                Padding="10,4" Style="{StaticResource SecondaryButton}" Click="MyTogglePass_Click"/>
+                    </Grid>
                     <TextBlock Text="Feed ID" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,14,0,0"/>
                     <TextBox x:Name="MyFeedBox" Margin="0,6,0,0" Padding="8,6"/>
                     <TextBlock Text="Seller account (optional)" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,14,0,0"/>

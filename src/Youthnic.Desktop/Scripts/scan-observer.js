@@ -11,8 +11,8 @@
 
   function findAwbInput() {
     var byId = document.getElementById('awbInput');
-    if (byId) return byId;
-    var inputs = document.querySelectorAll('input');
+    if (byId && byId.offsetParent !== null) return byId;
+    var inputs = document.querySelectorAll('input:not([type="hidden"]):not([type="password"])');
     for (var i = 0; i < inputs.length; i++) {
       var el = inputs[i];
       var placeholder = (el.getAttribute('placeholder') || '').toUpperCase();
@@ -25,12 +25,19 @@
         return el;
       }
     }
+    // Fallback: visible text input on the packing view (e.g. adjacent to Disconnect / Stop buttons)
+    for (var j = 0; j < inputs.length; j++) {
+      var inp = inputs[j];
+      if (inp.offsetParent !== null && (inp.type === 'text' || inp.type === 'search' || !inp.type)) {
+        return inp;
+      }
+    }
     return null;
   }
 
   function emitScan(value) {
     if (!value) return;
-    var clean = (value || '').trim();
+    var clean = (value || '').trim().toUpperCase();
     if (clean.length < MIN_LEN) return;
     if (clean === lastEmittedAwb) return;
     lastEmittedAwb = clean;
@@ -128,4 +135,26 @@
       lastEmittedAwb = '';
     }
   }, 100);
+
+  // Keep pointer / focus on the barcode scan bar during packing
+  function ensureScanBarFocus() {
+    var input = findAwbInput();
+    if (!input) return;
+    var active = document.activeElement;
+    if (!active || active === document.body || active.tagName === 'BODY' || active.tagName === 'BUTTON') {
+      try { input.focus(); } catch (e) {}
+    }
+  }
+
+  setInterval(ensureScanBarFocus, 400);
+
+  window.addEventListener('focus', function () {
+    setTimeout(ensureScanBarFocus, 50);
+  });
+
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'BUTTON') {
+      setTimeout(ensureScanBarFocus, 100);
+    }
+  });
 })();

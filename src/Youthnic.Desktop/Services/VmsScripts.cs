@@ -101,6 +101,29 @@ public static class VmsScripts
           }
           return null;
         }
+        function __yFindAwbInput() {
+          var byId = document.getElementById('awbInput');
+          if (byId && __yVisible(byId)) return byId;
+          var inputs = document.querySelectorAll('input:not([type="hidden"]):not([type="password"])');
+          for (var i = 0; i < inputs.length; i++) {
+            var el = inputs[i];
+            if (!__yVisible(el)) continue;
+            var ph = (el.getAttribute('placeholder') || '').toLowerCase();
+            var nm = (el.name || '').toLowerCase();
+            var id = (el.id || '').toLowerCase();
+            if (ph.indexOf('awb') !== -1 || ph.indexOf('tracking') !== -1 ||
+                nm.indexOf('awb') !== -1 || nm.indexOf('tracking') !== -1 ||
+                id.indexOf('awb') !== -1 || id.indexOf('tracking') !== -1) {
+              return el;
+            }
+          }
+          for (var j = 0; j < inputs.length; j++) {
+            if (__yVisible(inputs[j]) && (inputs[j].type === 'text' || inputs[j].type === 'search' || !inputs[j].type)) {
+              return inputs[j];
+            }
+          }
+          return null;
+        }
         function __yFindButton(name) {
           var els = document.querySelectorAll('button, [role="button"], input[type="submit"], input[type="button"]');
           var n = (name || '').trim().toLowerCase();
@@ -215,6 +238,28 @@ public static class VmsScripts
             "  return 'clicked';\n" +
             "})();";
     }
+
+    /// <summary>
+    /// Finds and focuses the AWB / tracking input field, selecting any existing text.
+    /// Returns 'focused' or 'missing'.
+    /// </summary>
+    public static string FocusAwbInput() =>
+        Helpers +
+        """
+        (function() {
+          var el = __yFindAwbInput();
+          if (el) {
+            try {
+              el.focus();
+              el.select();
+              return 'focused';
+            } catch (e) {
+              return 'error: ' + e;
+            }
+          }
+          return 'missing';
+        })();
+        """;
 
     private static string LoadProbe()
     {

@@ -32,10 +32,13 @@ public sealed class LookupCache
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
     }
 
-    public static string KeyFor(string marketplace, string trackingId) => $"{marketplace}:{trackingId}";
+    public static string KeyFor(string marketplace, string trackingId) =>
+        $"{marketplace.Trim().ToLowerInvariant()}:{trackingId.Trim().ToUpperInvariant()}";
 
     public static string KeyFor(string marketplace, string trackingId, string? seller)
-        => seller is null ? KeyFor(marketplace, trackingId) : $"{marketplace}:{trackingId}@{seller}";
+        => string.IsNullOrWhiteSpace(seller)
+            ? KeyFor(marketplace, trackingId)
+            : $"{marketplace.Trim().ToLowerInvariant()}:{trackingId.Trim().ToUpperInvariant()}@{seller.Trim().ToUpperInvariant()}";
 
     public int Count => _cache.Count;
 

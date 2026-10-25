@@ -29,6 +29,9 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
     /// </param>
     public async Task<LookupResponse> LookupAsync(ForwardScanMapping mapping, string marketplace, string trackingId, string? seller, CancellationToken ct)
     {
+        trackingId = (trackingId ?? string.Empty).Trim().ToUpperInvariant();
+        marketplace = (marketplace ?? string.Empty).Trim().ToLowerInvariant();
+
         string[]? sellerFilters = null;
         if (!string.IsNullOrWhiteSpace(seller))
         {

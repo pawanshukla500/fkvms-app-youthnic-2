@@ -44,6 +44,17 @@ public sealed record ForwardScanMapping
     public static ForwardScanMapping FromEnvironment(Func<string, string?>? get = null)
     {
         get ??= Environment.GetEnvironmentVariable;
+        var imageTable = (get("FS_IMAGE_TABLE") ?? string.Empty).Trim();
+        var imageJoinCol = (get("FS_IMAGE_SKU_JOIN_COL") ?? string.Empty).Trim();
+        var skuCol = (get("FS_COL_SKU") ?? string.Empty).Trim();
+        var skuMapTable = (get("FS_SKU_MAP_TABLE") ?? string.Empty).Trim();
+
+        // If ImageTable is specified but join column is omitted, default to ColSku or "sku"
+        if (!string.IsNullOrWhiteSpace(imageTable) && string.IsNullOrWhiteSpace(imageJoinCol))
+        {
+            imageJoinCol = !string.IsNullOrWhiteSpace(skuCol) ? skuCol : "sku";
+        }
+
         return new ForwardScanMapping
         {
             SchemaOrders = (get("FS_SCHEMA_ORDERS") ?? string.Empty).Trim(),
@@ -55,11 +66,11 @@ public sealed record ForwardScanMapping
             OrderItemsOrderJoinColumn = (get("FS_ORDER_ITEMS_ORDER_JOIN_COL") ?? string.Empty).Trim(),
             OrderItemsSkuColumn = (get("FS_ORDER_ITEMS_SKU_COL") ?? string.Empty).Trim(),
             ItemsJsonColumn = (get("FS_ITEMS_JSON_COLUMN") ?? string.Empty).Trim(),
-            SkuMapTable = (get("FS_SKU_MAP_TABLE") ?? string.Empty).Trim(),
-            ColSku = (get("FS_COL_SKU") ?? string.Empty).Trim(),
+            SkuMapTable = skuMapTable,
+            ColSku = skuCol,
             ColSkuName = (get("FS_COL_SKU_NAME") ?? string.Empty).Trim(),
-            ImageTable = (get("FS_IMAGE_TABLE") ?? string.Empty).Trim(),
-            ImageSkuJoinColumn = (get("FS_IMAGE_SKU_JOIN_COL") ?? string.Empty).Trim(),
+            ImageTable = imageTable,
+            ImageSkuJoinColumn = imageJoinCol,
             ColImageUrl = (get("FS_COL_IMAGE_URL") ?? string.Empty).Trim(),
         };
     }

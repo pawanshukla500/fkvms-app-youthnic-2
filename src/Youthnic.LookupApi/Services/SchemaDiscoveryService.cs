@@ -34,14 +34,21 @@ public sealed class SchemaDiscoveryService(NpgsqlDataSource dataSource, ILogger<
             logger.LogWarning(ex, "Schema discovery failed (database unreachable or metadata denied)");
         }
 
-        var envMissing = MappingValidator.FindMissingRequired(options.Mapping);
+        var mapping = options.Mapping;
+        if (!string.IsNullOrWhiteSpace(mapping.ImageTable) && string.IsNullOrWhiteSpace(mapping.ImageSkuJoinColumn))
+        {
+            var joinCol = !string.IsNullOrWhiteSpace(mapping.ColSku) ? mapping.ColSku : "sku";
+            mapping = mapping with { ImageSkuJoinColumn = joinCol };
+        }
+
+        var envMissing = MappingValidator.FindMissingRequired(mapping);
         if (envMissing.Count == 0)
         {
             try
             {
-                MappingValidator.ValidateMapping(options.Mapping);
-                state.SetReady(options.Mapping, "configured via environment");
-                logger.LogInformation("Lookup mapping ready from environment: {Mapping}", Describe(options.Mapping));
+                MappingValidator.ValidateMapping(mapping);
+                state.SetReady(mapping, "configured via environment");
+                logger.LogInformation("Lookup mapping ready from environment: {Mapping}", Describe(mapping));
                 return;
             }
             catch (InvalidOperationException ex)

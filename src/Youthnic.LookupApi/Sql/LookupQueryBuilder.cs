@@ -161,7 +161,7 @@ public static class LookupQueryBuilder
         return "\"" + identifier.Replace("\"", "\"\"") + "\"";
     }
 
-    private static string TableIdent(string schema, string table)
+    public static string TableIdent(string schema, string table)
     {
         MappingValidator.EnsureValid("table", table);
         if (string.IsNullOrWhiteSpace(schema)) return Quoted(table);

@@ -85,13 +85,10 @@ public sealed class InspectService(
         {
             await using var conn = await dataSource.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "BEGIN READ ONLY; SELECT 1; SHOW transaction_read_only; COMMIT;";
+            cmd.CommandText = "SHOW transaction_read_only;";
             cmd.CommandTimeout = Math.Max(1, (options.QueryTimeoutMs + 999) / 1000);
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            var values = new List<string>();
-            while (await reader.ReadAsync(ct))
-                values.Add(reader.GetString(0));
-            return new DatabaseStatus(true, values.Any(v => v.Equals("on", StringComparison.OrdinalIgnoreCase)));
+            var val = (await cmd.ExecuteScalarAsync(ct))?.ToString();
+            return new DatabaseStatus(true, string.Equals(val, "on", StringComparison.OrdinalIgnoreCase));
         }
         catch (Exception ex)
         {

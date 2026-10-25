@@ -216,4 +216,38 @@ public class MappingValidatorItemsJsonTests
         Assert.Equal("items_json", m.ItemsJsonColumn);
         MappingValidator.ValidateMapping(m);
     }
+
+    [Fact]
+    public void FromEnvironment_AutoPopulatesImageSkuJoinColumn_WhenImageTableProvided()
+    {
+        var m = ForwardScanMapping.FromEnvironment(name => name switch
+        {
+            "FS_ORDERS_TABLE" => "oms_orders",
+            "FS_COL_TRACKING" => "tracking_norm",
+            "FS_ITEMS_JSON_COLUMN" => "items_json",
+            "FS_IMAGE_TABLE" => "sku_photos",
+            "FS_COL_IMAGE_URL" => "image_url",
+            _ => null,
+        });
+        Assert.Equal("sku_photos", m.ImageTable);
+        Assert.Equal("sku", m.ImageSkuJoinColumn);
+        Assert.Equal("image_url", m.ColImageUrl);
+        MappingValidator.ValidateMapping(m);
+    }
+
+    [Fact]
+    public void FromEnvironment_UsesColSkuAsImageSkuJoinColumn_WhenAvailable()
+    {
+        var m = ForwardScanMapping.FromEnvironment(name => name switch
+        {
+            "FS_ORDERS_TABLE" => "oms_orders",
+            "FS_COL_TRACKING" => "tracking_norm",
+            "FS_ITEMS_JSON_COLUMN" => "items_json",
+            "FS_COL_SKU" => "item_sku",
+            "FS_IMAGE_TABLE" => "sku_photos",
+            "FS_COL_IMAGE_URL" => "image_url",
+            _ => null,
+        });
+        Assert.Equal("item_sku", m.ImageSkuJoinColumn);
+    }
 }

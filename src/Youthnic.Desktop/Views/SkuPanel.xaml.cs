@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Net;
 using System.Windows;
 using System.Windows.Controls;
@@ -8,25 +9,21 @@ using Youthnic.Desktop.Services;
 
 namespace Youthnic.Desktop.Views;
 
-/// <summary>Display row for the "also in this shipment" list. Text is HTML-decoded
-/// (the lookup API can return entities like &amp;amp;) before it reaches the panel.</summary>
-public sealed record AdditionalItemRow(int Quantity, string Sku, string SkuName);
-
 public partial class SkuPanel : UserControl
 {
     public event Action? RetryRequested;
 
     private long _currentSeq;
 
-    private DispatcherTimer? _multiQtyTimer;
-    private int _multiQtyCountdown;
-
     private DispatcherTimer? _wrongMpTimer;
     private int _wrongMpCountdown;
+
+    public ObservableCollection<ProductCardModel> ProductCards { get; } = new();
 
     public SkuPanel()
     {
         InitializeComponent();
+        MultiItemsGrid.ItemsSource = ProductCards;
         ShowIdle();
     }
 
@@ -47,10 +44,11 @@ public partial class SkuPanel : UserControl
     public void ShowIdle()
     {
         DismissAllPopups();
+        ProductCards.Clear();
         SetState(IdlePanel);
         SkuNameText.Text = string.Empty;
         SkuIdText.Text = string.Empty;
-        AdditionalItemsList.ItemsSource = null;
+        SingleItemDetails.Visibility = Visibility.Collapsed;
         StatusText.Text = "Scan an AWB in the VMS to see the product here.";
     }
 
@@ -59,8 +57,10 @@ public partial class SkuPanel : UserControl
     {
         _currentSeq = seq;
         DismissAllPopups();
+        ProductCards.Clear();
         SetState(LoadingPanel);
         LoadingText.Text = $"Looking up {awb}…";
+        SingleItemDetails.Visibility = Visibility.Collapsed;
         StatusText.Text = string.Empty;
     }
 
@@ -72,11 +72,6 @@ public partial class SkuPanel : UserControl
         {
             case LookupOutcome.Ok when result.Items.Count > 0:
                 ShowProduct(result);
-                var totalUnits = result.Items.Sum(i => i.Quantity);
-                if (totalUnits > 1 || result.Items.Count > 1)
-                {
-                    ShowMultiQtyAlert(totalUnits);
-                }
                 break;
 
             case LookupOutcome.WrongMarketplace:
@@ -118,72 +113,84 @@ public partial class SkuPanel : UserControl
 
     private void ShowProduct(ScanLookupResult result)
     {
-        var main = result.Items[0];
-        // The lookup payload may carry HTML entities (e.g. "&amp;") — decode before display.
-        SkuNameText.Text = Decode(main.SkuName);
-        SkuIdText.Text = $"SKU {main.Sku}" +
-                         (main.Quantity > 1 ? $"  ·  Qty {main.Quantity}" : string.Empty) +
-                         (string.IsNullOrWhiteSpace(main.Seller)
-                             ? string.Empty
-                             : $"  ·  {Decode(main.Seller)}");
-
-        // Populate garment verification card immediately
-        ProductImage.Source = null;
-        ProductImage.Visibility = Visibility.Collapsed;
-
-        var size = ExtractSize(main.Sku);
-        if (!string.IsNullOrWhiteSpace(size))
+        ProductCards.Clear();
+        for (var i = 0; i < result.Items.Count; i++)
         {
-            PlaceholderSizeText.Text = $"SIZE: {size}";
-            PlaceholderSizeBadge.Visibility = Visibility.Visible;
+            var card = ProductCardModel.FromLookupItem(result.Items[i], i);
+            ProductCards.Add(card);
+        }
+
+        var totalUnits = result.Items.Sum(i => i.Quantity);
+        var isMulti = result.Items.Count > 1 || totalUnits > 1;
+
+        if (isMulti)
+        {
+            MultiItemBannerText.Text = $"MULTI-ITEM: {totalUnits} units · {result.Items.Count} different SKUs";
+            SingleItemPanel.Visibility = Visibility.Collapsed;
+            SingleItemDetails.Visibility = Visibility.Collapsed;
+            MultiItemsPanel.Visibility = Visibility.Visible;
+            SetState(MultiItemsPanel);
         }
         else
         {
-            PlaceholderSizeBadge.Visibility = Visibility.Collapsed;
-        }
+            var main = ProductCards[0];
+            SkuNameText.Text = main.SkuName;
+            SkuIdText.Text = $"SKU {main.Sku}" +
+                             (main.Quantity > 1 ? $"  ·  Qty {main.Quantity}" : string.Empty) +
+                             (string.IsNullOrWhiteSpace(main.Seller) ? string.Empty : $"  ·  {main.Seller}");
 
-        PlaceholderDesignText.Text = Decode(main.SkuName);
-        ImagePlaceholderCard.Visibility = Visibility.Visible;
-
-        AdditionalItemsList.ItemsSource = result.Items.Skip(1)
-            .Select(i => new AdditionalItemRow(i.Quantity, i.Sku, Decode(i.SkuName)))
-            .ToList();
-        SetState(ImagePlaceholderCard);
-        StatusText.Text = $"AWB {result.Awb} — {result.Items.Count} item(s)";
-    }
-
-    /// <summary>
-    /// Shows auto-dismissing (2-3s) popup when tracking ID has quantity > 1 or multiple items.
-    /// </summary>
-    private void ShowMultiQtyAlert(int totalUnits)
-    {
-        _multiQtyTimer?.Stop();
-        _multiQtyCountdown = 3;
-        MultiQtyTitle.Text = $"{totalUnits} UNITS TO PACK";
-        MultiQtyDesc.Text = $"This shipment contains {totalUnits} items. Verify all {totalUnits} pieces before sealing.";
-        MultiQtyCountdownText.Text = $"Auto-closing in {_multiQtyCountdown}s…";
-        MultiQtyOverlay.Visibility = Visibility.Visible;
-
-        _multiQtyTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _multiQtyTimer.Tick += (s, e) =>
-        {
-            _multiQtyCountdown--;
-            if (_multiQtyCountdown <= 0)
+            if (!string.IsNullOrWhiteSpace(main.Size))
             {
-                _multiQtyTimer?.Stop();
-                MultiQtyOverlay.Visibility = Visibility.Collapsed;
+                PlaceholderSizeText.Text = $"SIZE: {main.Size}";
+                PlaceholderSizeBadge.Visibility = Visibility.Visible;
             }
             else
             {
-                MultiQtyCountdownText.Text = $"Auto-closing in {_multiQtyCountdown}s…";
+                PlaceholderSizeBadge.Visibility = Visibility.Collapsed;
             }
-        };
-        _multiQtyTimer.Start();
+
+            PlaceholderDesignText.Text = main.SkuName;
+            ProductImage.Source = null;
+            ProductImage.Visibility = Visibility.Collapsed;
+            ImagePlaceholderCard.Visibility = Visibility.Visible;
+
+            MultiItemsPanel.Visibility = Visibility.Collapsed;
+            SingleItemPanel.Visibility = Visibility.Visible;
+            SingleItemDetails.Visibility = Visibility.Visible;
+            SetState(SingleItemPanel);
+        }
+
+        StatusText.Text = $"AWB {result.Awb} — {result.Items.Count} item(s), {totalUnits} unit(s)";
     }
 
     /// <summary>
-    /// Shows popup notification when a barcode from another marketplace is scanned.
+    /// Updates image for an item by sequence and index. Stale sequences are rejected.
     /// </summary>
+    public void SetItemImage(long seq, int index, BitmapImage image)
+    {
+        if (seq != _currentSeq) return;
+
+        if (index >= 0 && index < ProductCards.Count)
+        {
+            ProductCards[index].Image = image;
+        }
+
+        if (index == 0)
+        {
+            ProductImage.Source = image;
+            ProductImage.Visibility = Visibility.Visible;
+            ImagePlaceholderCard.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    /// <summary>
+    /// Legacy compatibility for single item image updates.
+    /// </summary>
+    public void ShowImage(long seq, BitmapImage image)
+    {
+        SetItemImage(seq, 0, image);
+    }
+
     private void ShowWrongMarketplaceAlert(ScanLookupResult result)
     {
         _wrongMpTimer?.Stop();
@@ -213,17 +220,8 @@ public partial class SkuPanel : UserControl
 
     private void DismissAllPopups()
     {
-        _multiQtyTimer?.Stop();
-        MultiQtyOverlay.Visibility = Visibility.Collapsed;
-
         _wrongMpTimer?.Stop();
         WrongMarketplaceOverlay.Visibility = Visibility.Collapsed;
-    }
-
-    private void DismissMultiQty_Click(object sender, RoutedEventArgs e)
-    {
-        _multiQtyTimer?.Stop();
-        MultiQtyOverlay.Visibility = Visibility.Collapsed;
     }
 
     private void DismissWrongMarketplace_Click(object sender, RoutedEventArgs e)
@@ -232,28 +230,17 @@ public partial class SkuPanel : UserControl
         WrongMarketplaceOverlay.Visibility = Visibility.Collapsed;
     }
 
-    /// <summary>
-    /// Called when the first item's image has finished downloading. Guarded by the
-    /// scan sequence: a bitmap from an older scan never replaces a newer scan's panel.
-    /// </summary>
-    public void ShowImage(long seq, BitmapImage image)
-    {
-        if (seq != _currentSeq) return; // stale image from a cancelled/superseded scan
-
-        ProductImage.Source = image;
-        ProductImage.Visibility = Visibility.Visible;
-        ImagePlaceholderCard.Visibility = Visibility.Collapsed;
-        SetState(ProductImage);
-    }
-
     private void ShowMessage(string glyph, string title, string hint, bool showRetry)
     {
+        ProductCards.Clear();
         SkuNameText.Text = string.Empty;
         SkuIdText.Text = string.Empty;
-        AdditionalItemsList.ItemsSource = null;
+        SingleItemDetails.Visibility = Visibility.Collapsed;
         ProductImage.Source = null;
         ProductImage.Visibility = Visibility.Collapsed;
         ImagePlaceholderCard.Visibility = Visibility.Collapsed;
+        SingleItemPanel.Visibility = Visibility.Collapsed;
+        MultiItemsPanel.Visibility = Visibility.Collapsed;
 
         MessageGlyph.Text = glyph;
         MessageTitle.Text = title;
@@ -267,36 +254,11 @@ public partial class SkuPanel : UserControl
         IdlePanel.Visibility = Equals(active, IdlePanel) ? Visibility.Visible : Visibility.Collapsed;
         LoadingPanel.Visibility = Equals(active, LoadingPanel) ? Visibility.Visible : Visibility.Collapsed;
         MessagePanel.Visibility = Equals(active, MessagePanel) ? Visibility.Visible : Visibility.Collapsed;
-        ProductImage.Visibility = Equals(active, ProductImage) ? Visibility.Visible : Visibility.Collapsed;
-        ImagePlaceholderCard.Visibility = Equals(active, ImagePlaceholderCard) ? Visibility.Visible : Visibility.Collapsed;
+        SingleItemPanel.Visibility = Equals(active, SingleItemPanel) ? Visibility.Visible : Visibility.Collapsed;
+        MultiItemsPanel.Visibility = Equals(active, MultiItemsPanel) ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void RetryButton_Click(object sender, RoutedEventArgs e) => RetryRequested?.Invoke();
-
-    private static string? ExtractSize(string sku)
-    {
-        if (string.IsNullOrWhiteSpace(sku)) return null;
-        var s = sku.Trim();
-        var lastUnderscore = s.LastIndexOf('_');
-        if (lastUnderscore > 0 && lastUnderscore < s.Length - 1)
-        {
-            var suffix = s[(lastUnderscore + 1)..].Trim().ToUpperInvariant();
-            if (IsKnownSize(suffix)) return suffix;
-        }
-        var lastHyphen = s.LastIndexOf('-');
-        if (lastHyphen > 0 && lastHyphen < s.Length - 1)
-        {
-            var suffix = s[(lastHyphen + 1)..].Trim().ToUpperInvariant();
-            if (IsKnownSize(suffix)) return suffix;
-        }
-        return null;
-    }
-
-    private static bool IsKnownSize(string s) => s switch
-    {
-        "XS" or "S" or "M" or "L" or "XL" or "XXL" or "2XL" or "3XL" or "4XL" or "5XL" or "6XL" or "FREE" or "FS" => true,
-        _ => false
-    };
 
     private static string FirstNonEmpty(string? preferred, string fallback) =>
         string.IsNullOrWhiteSpace(preferred) ? fallback : preferred;

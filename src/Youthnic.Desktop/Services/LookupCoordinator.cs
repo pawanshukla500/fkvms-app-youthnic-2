@@ -63,6 +63,8 @@ public sealed class LookupCoordinator
         _scanContext = scanContext;
     }
 
+    public ImageCache ImageCache => _imageCache;
+
     /// <summary>Fired on the UI dispatcher for every completed (or failed) lookup.</summary>
     public event Action<ScanLookupResult>? LookupCompleted;
 
@@ -73,6 +75,9 @@ public sealed class LookupCoordinator
     /// actually arrived — failures stay on the placeholder.
     /// </summary>
     public event Action<long, BitmapImage>? ImageReady;
+
+    /// <summary>Fired on the UI dispatcher when any item's product image finishes downloading.</summary>
+    public event Action<long, int, BitmapImage>? ItemImageReady;
 
     /// <summary>Fired on the UI dispatcher right before a new lookup starts (panel shows loading).</summary>
     public event Action<long, string>? LookupStarted;
@@ -195,15 +200,19 @@ public sealed class LookupCoordinator
         // image can never overwrite a newer scan's panel.
         if (result.Outcome == LookupOutcome.Ok && result.Items.Count > 0)
         {
-            var urls = result.Items[0].ImageUrls?.Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
-            if (urls != null && urls.Count > 0)
+            for (var i = 0; i < result.Items.Count; i++)
             {
-                _ = LoadMainImageAsync(seq, awb, urls, ct);
+                var urls = result.Items[i].ImageUrls?.Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
+                if (urls != null && urls.Count > 0)
+                {
+                    var itemIndex = i;
+                    _ = LoadItemImageAsync(seq, awb, itemIndex, urls, ct);
+                }
             }
         }
     }
 
-    private async Task LoadMainImageAsync(long seq, string awb, IReadOnlyList<string> urls, CancellationToken ct)
+    private async Task LoadItemImageAsync(long seq, string awb, int index, IReadOnlyList<string> urls, CancellationToken ct)
     {
         BitmapImage? image = null;
         foreach (var url in urls)
@@ -219,7 +228,7 @@ public sealed class LookupCoordinator
             }
             catch (Exception ex)
             {
-                AppLog.Debug($"LookupCoordinator: image load failed for awb '{awb}' ({url}): {ex.Message}");
+                AppLog.Debug($"LookupCoordinator: image load failed for awb '{awb}' item {index} ({url}): {ex.Message}");
             }
         }
 
@@ -230,6 +239,15 @@ public sealed class LookupCoordinator
             if (seq != _lastSeq) return; // a newer scan owns the panel now
         }
 
-        _ = _dispatcher.BeginInvoke(() => ImageReady?.Invoke(seq, image));
+        _ = _dispatcher.BeginInvoke(() =>
+        {
+            lock (_gate)
+            {
+                if (seq != _lastSeq) return; // newer scan superseded callback before dispatch executed
+            }
+
+            if (index == 0) ImageReady?.Invoke(seq, image);
+            ItemImageReady?.Invoke(seq, index, image);
+        });
     }
 }

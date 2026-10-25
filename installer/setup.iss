@@ -143,7 +143,15 @@ begin
     '"lookupApiUrl":"' + JsonEscape(Trim(DefaultsPage.Values[0])) + '",' +
     '"flipkartSeller":"' + JsonEscape(Trim(DefaultsPage.Values[1])) + '",' +
     '"myntraSeller":"' + JsonEscape(Trim(DefaultsPage.Values[2])) + '",' +
-    '"lookupApiKey":"' + JsonEscape(Trim(DefaultsPage.Values[3])) + '"}';
+    '"lookupApiKey":"' + JsonEscape(Trim(DefaultsPage.Values[3])) + '",' +
+    '"flipkartVmsUrl":"https://fkvms.synlabs.io/",' +
+    '"flipkartUsername":"ethnicfeed8",' +
+    '"flipkartPassword":"Ethnic@123",' +
+    '"flipkartFeedId":"9e5195bd",' +
+    '"myntraVmsUrl":"https://fkvms.synlabs.io/",' +
+    '"myntraUsername":"ethnicfeed8",' +
+    '"myntraPassword":"Ethnic@123",' +
+    '"myntraFeedId":"9e5195bd"}';
   SaveStringToFile(Path + '\install-defaults.json', Utf8Encode(Json), False);
 end;
 

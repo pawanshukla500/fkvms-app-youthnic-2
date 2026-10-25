@@ -44,7 +44,7 @@
         <!-- Product image / state area -->
         <Border Grid.Row="1" Background="#F4F6F9" CornerRadius="6"
                 BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
-                MinHeight="360" MaxHeight="500">
+                MinHeight="260" MaxHeight="500">
             <Grid>
                 <!-- Idle -->
                 <StackPanel x:Name="IdlePanel" VerticalAlignment="Center" HorizontalAlignment="Center">

@@ -15,7 +15,15 @@ public sealed record InstallDefaults(
     string? LookupApiUrl,
     string? FlipkartSeller,
     string? MyntraSeller,
-    string? LookupApiKey)
+    string? LookupApiKey,
+    string? FlipkartUsername = null,
+    string? FlipkartPassword = null,
+    string? FlipkartFeedId = null,
+    string? FlipkartVmsUrl = null,
+    string? MyntraUsername = null,
+    string? MyntraPassword = null,
+    string? MyntraFeedId = null,
+    string? MyntraVmsUrl = null)
 {
     public static InstallDefaults Empty { get; } = new(null, null, null, null);
 

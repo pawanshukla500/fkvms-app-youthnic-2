@@ -24,3 +24,6 @@ jobs:
 
       - name: Run unit tests
         run: dotnet test YouthnicPackingDesk.sln -c Release --no-build --verbosity normal
+
+      - name: Verify self-contained desktop publish
+        run: powershell -ExecutionPolicy Bypass -File installer/publish.ps1

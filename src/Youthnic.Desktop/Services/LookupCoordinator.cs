@@ -195,32 +195,35 @@ public sealed class LookupCoordinator
         // image can never overwrite a newer scan's panel.
         if (result.Outcome == LookupOutcome.Ok && result.Items.Count > 0)
         {
-            var mainUrl = result.Items[0].ImageUrls?.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u));
-            if (!string.IsNullOrWhiteSpace(mainUrl))
+            var urls = result.Items[0].ImageUrls?.Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
+            if (urls != null && urls.Count > 0)
             {
-                _ = LoadMainImageAsync(seq, awb, mainUrl, ct);
+                _ = LoadMainImageAsync(seq, awb, urls, ct);
             }
         }
     }
 
-    private async Task LoadMainImageAsync(long seq, string awb, string url, CancellationToken ct)
+    private async Task LoadMainImageAsync(long seq, string awb, IReadOnlyList<string> urls, CancellationToken ct)
     {
-        BitmapImage? image;
-        try
+        BitmapImage? image = null;
+        foreach (var url in urls)
         {
-            image = await _imageCache.GetAsync(url, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            return; // superseded by a newer scan
-        }
-        catch (Exception ex)
-        {
-            AppLog.Debug($"LookupCoordinator: image load failed for awb '{awb}' ({url}): {ex.Message}");
-            return; // "No image" placeholder already shown; names stay visible
+            try
+            {
+                image = await _imageCache.GetAsync(url, ct).ConfigureAwait(false);
+                if (image != null) break;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return; // superseded by a newer scan
+            }
+            catch (Exception ex)
+            {
+                AppLog.Debug($"LookupCoordinator: image load failed for awb '{awb}' ({url}): {ex.Message}");
+            }
         }
 
-        if (image is null) return; // 404/timeout: negative-cached by ImageCache, placeholder stays
+        if (image is null) return; // all candidate URLs failed; placeholder stays
 
         lock (_gate)
         {

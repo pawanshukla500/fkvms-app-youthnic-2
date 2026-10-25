@@ -49,18 +49,26 @@ public static class ScanObserver
         {
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.TryGetProperty("type", out var type) ||
+                type.ValueKind != JsonValueKind.String ||
                 !string.Equals(type.GetString(), "scan", StringComparison.Ordinal))
             {
                 return false;
             }
-            if (!doc.RootElement.TryGetProperty("awb", out var awbElement)) return false;
+            if (!doc.RootElement.TryGetProperty("awb", out var awbElement) ||
+                awbElement.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
             var value = awbElement.GetString();
             if (string.IsNullOrWhiteSpace(value)) return false;
-            awb = value.Trim();
-            return awb.Length >= 4;
+            var trimmed = value.Trim();
+            if (trimmed.Length < 4) return false;
+            awb = trimmed;
+            return true;
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
         {
+            awb = string.Empty;
             return false;
         }
     }

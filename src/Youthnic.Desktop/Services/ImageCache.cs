@@ -21,11 +21,20 @@ public sealed class ImageCache
     private const long TargetDiskCacheSizeBytes = 200 * 1024 * 1024; // 200 MB
     private static readonly TimeSpan NegativeCacheTtl = TimeSpan.FromMinutes(2);
 
-    private static readonly HttpClient SharedClient = new(new SocketsHttpHandler
+    private static readonly HttpClient SharedClient = CreateClient();
+
+    private static HttpClient CreateClient()
     {
-        PooledConnectionLifetime = TimeSpan.FromMinutes(2)
-    })
-    { Timeout = TimeSpan.FromSeconds(5) };
+        var client = new HttpClient(new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2)
+        })
+        {
+            Timeout = TimeSpan.FromSeconds(15)
+        };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("YouthnicPackingDesk/1.0 (Windows NT 10.0; Win64; x64)");
+        return client;
+    }
 
     private readonly object _gate = new();
     private readonly Dictionary<string, (BitmapImage image, long tick)> _memoryCache = new();
@@ -92,7 +101,12 @@ public sealed class ImageCache
                 bytes = await SharedClient.GetByteArrayAsync(url, ct).ConfigureAwait(false);
                 _ = SaveToDiskAsync(diskPath, bytes);
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException or InvalidOperationException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Superseded by a newer scan; do NOT negative-cache
+                return null;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
             {
                 lock (_gate)
                 {

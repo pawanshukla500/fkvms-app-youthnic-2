@@ -67,25 +67,20 @@ public partial class SelectionWindow : Window
             hint.Visibility = configured ? Visibility.Collapsed : Visibility.Visible;
         }
 
-        // Myntra with no configured URL stays disabled with its hint visible.
-        var enabled = marketplace == Marketplace.Myntra
-            ? configured
-            : true;
-        card.Opacity = enabled ? 1.0 : 0.55;
-        card.Cursor = enabled ? Cursors.Hand : Cursors.Arrow;
-        card.Tag = (marketplace, enabled);
+        // Both cards are fully interactive; clicking an unconfigured card opens SetupWizard
+        card.Opacity = 1.0;
+        card.Cursor = Cursors.Hand;
+        card.Tag = marketplace;
     }
 
     private void Card_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not System.Windows.Controls.Border card ||
-            card.Tag is not ValueTuple<Marketplace, bool> tag ||
-            !tag.Item2)
+            card.Tag is not Marketplace marketplace)
         {
             return;
         }
 
-        var marketplace = tag.Item1;
         var configured = _options?.For(marketplace).IsConfigured == true;
 
         if (!configured)

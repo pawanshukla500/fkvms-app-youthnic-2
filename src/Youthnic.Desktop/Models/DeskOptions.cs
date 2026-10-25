@@ -50,12 +50,20 @@ public sealed record DeskOptions(
     public const string DefaultFlipkartSeller = "ETHNIC JUNCTION - Flipkart";
     public const string DefaultMyntraSeller = "ETHNIC JUNCTION - Myntra Youthnic";
 
+    public const string DefaultFlipkartUsername = DefaultUsername;
+    public const string DefaultFlipkartPassword = DefaultPassword;
+    public const string DefaultFlipkartFeedId = DefaultFeedId;
+
+    public const string DefaultMyntraUsername = DefaultUsername;
+    public const string DefaultMyntraPassword = DefaultPassword;
+    public const string DefaultMyntraFeedId = DefaultFeedId;
+
     public static DeskOptions Empty { get; } = new(
         DeviceId: string.Empty,
         DeskName: "Packing Desk",
         LookupApiUrl: DefaultLookupApiUrl,
-        Flipkart: new MarketplaceConfig(DefaultFlipkartVmsUrl, DefaultUsername, DefaultPassword, DefaultFeedId, DefaultFlipkartSeller),
-        Myntra: new MarketplaceConfig(DefaultMyntraVmsUrl, DefaultUsername, DefaultPassword, DefaultFeedId, DefaultMyntraSeller),
+        Flipkart: new MarketplaceConfig(DefaultFlipkartVmsUrl, DefaultFlipkartUsername, DefaultFlipkartPassword, DefaultFlipkartFeedId, DefaultFlipkartSeller),
+        Myntra: new MarketplaceConfig(DefaultMyntraVmsUrl, DefaultMyntraUsername, DefaultMyntraPassword, DefaultMyntraFeedId, DefaultMyntraSeller),
         SetupCompleted: true,
         LookupApiKey: DefaultLookupApiKey);
 

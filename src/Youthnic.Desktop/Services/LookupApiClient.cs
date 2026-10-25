@@ -55,11 +55,28 @@ public sealed class LookupApiClient : IDisposable
         if (!string.IsNullOrWhiteSpace(seller))
             url += $"&seller={Uri.EscapeDataString(seller.Trim())}";
 
-        using var request = BuildRequest(HttpMethod.Get, url, apiKey);
-        using var response = await client.SendAsync(request, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        return await JsonSerializer.DeserializeAsync<LookupResponse>(stream, JsonOptions, ct).ConfigureAwait(false);
+        HttpResponseMessage? response = null;
+        try
+        {
+            using var request = BuildRequest(HttpMethod.Get, url, apiKey);
+            response = await client.SendAsync(request, ct).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+        }
+        catch (HttpRequestException ex) when (!ct.IsCancellationRequested)
+        {
+            // Fast retry on transient warehouse Wi-Fi glitch / connection reset
+            AppLog.Debug($"LookupApiClient: transient network blip for '{awb}', retrying: {ex.Message}");
+            await Task.Delay(250, ct).ConfigureAwait(false);
+            using var retryRequest = BuildRequest(HttpMethod.Get, url, apiKey);
+            response = await client.SendAsync(retryRequest, ct).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+        }
+
+        using (response)
+        {
+            await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            return await JsonSerializer.DeserializeAsync<LookupResponse>(stream, JsonOptions, ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Best-effort GET {base}/health used by the setup wizard's connection test.</summary>

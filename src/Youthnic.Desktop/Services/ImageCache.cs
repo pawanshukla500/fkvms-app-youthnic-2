@@ -41,10 +41,11 @@ public sealed class ImageCache
     private readonly Dictionary<string, DateTime> _failed = new();
     private readonly string _diskCacheDir;
     private long _tick;
+    private int _diskWritesSincePrune;
 
-    public ImageCache()
+    public ImageCache(string? diskCacheDir = null)
     {
-        _diskCacheDir = Path.Combine(
+        _diskCacheDir = diskCacheDir ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Youthnic", "PackingDesk", "ImageCache");
 
@@ -59,13 +60,15 @@ public sealed class ImageCache
         }
     }
 
-    public async Task<BitmapImage?> GetAsync(string? url, CancellationToken ct)
+    public async Task<BitmapImage?> GetAsync(string? url, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
 
         // 1. Check memory cache (0 ms)
         lock (_gate)
         {
+            PruneExpiredFailedEntries();
+
             if (_failed.TryGetValue(url, out var failedAt) && DateTime.UtcNow - failedAt < NegativeCacheTtl)
                 return null;
 
@@ -74,6 +77,16 @@ public sealed class ImageCache
                 _memoryCache[url] = (hit.image, ++_tick);
                 return hit.image;
             }
+        }
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var parsedUri) ||
+            (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps))
+        {
+            lock (_gate)
+            {
+                _failed[url] = DateTime.UtcNow;
+            }
+            return null;
         }
 
         byte[]? bytes = null;
@@ -106,7 +119,7 @@ public sealed class ImageCache
                 // Superseded by a newer scan; do NOT negative-cache
                 return null;
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException or NotSupportedException or UriFormatException)
             {
                 lock (_gate)
                 {
@@ -121,7 +134,7 @@ public sealed class ImageCache
         {
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
-            bitmap.DecodePixelWidth = 600;
+            bitmap.DecodePixelWidth = 500;
             bitmap.CacheOption = BitmapCacheOption.OnLoad;
             bitmap.StreamSource = new MemoryStream(bytes, writable: false);
             bitmap.EndInit();
@@ -153,17 +166,35 @@ public sealed class ImageCache
         return Path.Combine(_diskCacheDir, $"{hash}.img");
     }
 
-    private static async Task SaveToDiskAsync(string path, byte[] bytes)
+    private async Task SaveToDiskAsync(string path, byte[] bytes)
     {
         try
         {
             var tempPath = path + ".tmp." + Guid.NewGuid().ToString("N");
             await File.WriteAllBytesAsync(tempPath, bytes).ConfigureAwait(false);
             File.Move(tempPath, path, overwrite: true);
+
+            // Periodically verify disk cache bounds every 50 new images written during continuous shifts
+            if (Interlocked.Increment(ref _diskWritesSincePrune) >= 50)
+            {
+                Interlocked.Exchange(ref _diskWritesSincePrune, 0);
+                _ = Task.Run(PruneDiskCacheIfNeeded);
+            }
         }
         catch (Exception ex)
         {
             AppLog.Debug($"ImageCache: disk write failed: {ex.Message}");
+        }
+    }
+
+    private void PruneExpiredFailedEntries()
+    {
+        if (_failed.Count < 32) return;
+        var now = DateTime.UtcNow;
+        var expired = _failed.Where(kvp => now - kvp.Value >= NegativeCacheTtl).Select(kvp => kvp.Key).ToList();
+        foreach (var key in expired)
+        {
+            _failed.Remove(key);
         }
     }
 

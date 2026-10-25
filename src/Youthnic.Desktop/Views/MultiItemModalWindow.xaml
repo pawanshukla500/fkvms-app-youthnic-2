@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True"
         Background="#B30B0F19" ShowInTaskbar="False"
+        ShowActivated="False"
         WindowStartupLocation="Manual"
         PreviewKeyDown="Window_PreviewKeyDown"
         MouseDown="Window_MouseDown">
@@ -135,7 +136,7 @@
                         CornerRadius="0,0,14,14" Padding="20,12">
                     <Grid>
                         <TextBlock x:Name="CountdownText"
-                                   Text="Closes in 5s · press Enter, Esc, or click outside to dismiss"
+                                   Text="Closes in 2s · press Enter, Esc, or click outside to dismiss"
                                    FontSize="12" Foreground="#64748B" VerticalAlignment="Center"/>
                         <Button Content="Got It (Enter)" Style="{StaticResource PrimaryModalButton}"
                                 HorizontalAlignment="Right" Click="Close_Click"/>

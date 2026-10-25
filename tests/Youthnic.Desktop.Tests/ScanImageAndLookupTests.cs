@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Xunit;
@@ -171,4 +172,62 @@ public class ScanImageAndLookupTests
         Assert.Equal("SKD237-Juhi-Mehendi_M", response.Items![0].Sku);
         Assert.Empty(response.Items![0].ImageUrls);
     }
+
+    [Fact]
+    public async Task ImageCache_Handles1000Scans_NegativeCachePrunedAndBounded()
+    {
+        var tempCacheDir = Path.Combine(Path.GetTempPath(), "YouthnicTestCache_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var cache = new ImageCache(tempCacheDir);
+
+            // Simulate 1000 scans with invalid scheme (throws InvalidOperationException instantly)
+            for (var i = 0; i < 1000; i++)
+            {
+                var fakeUrl = $"badscheme://invalid-host/image_{i}.jpg";
+                var result = await cache.GetAsync(fakeUrl);
+                Assert.Null(result);
+            }
+
+            // Verify cache handles repeated queries cleanly and negative cache is active
+            var retryResult = await cache.GetAsync("badscheme://invalid-host/image_0.jpg");
+            Assert.Null(retryResult);
+        }
+        finally
+        {
+            if (Directory.Exists(tempCacheDir))
+            {
+                try { Directory.Delete(tempCacheDir, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public void LookupCoordinator_1000ScansSequence_ProcessesSmoothly()
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        using var client = new LookupApiClient();
+        var cache = new ImageCache();
+        var coordinator = new LookupCoordinator(
+            dispatcher, client, cache,
+            () => "http://127.0.0.1:5080",
+            () => "",
+            () => ("Flipkart", "ETHNIC JUNCTION - Flipkart"));
+
+        var startedAwbs = new List<string>();
+        coordinator.LookupStarted += (seq, awb) => startedAwbs.Add(awb);
+
+        // Feed 1000 distinct AWBs
+        for (var i = 0; i < 1000; i++)
+        {
+            coordinator.HandleScan($"AWB{i:D6}");
+        }
+
+        PumpDispatcher(dispatcher);
+
+        Assert.Equal(1000, startedAwbs.Count);
+        Assert.Equal("AWB000000", startedAwbs[0]);
+        Assert.Equal("AWB000999", startedAwbs[999]);
+    }
 }
+

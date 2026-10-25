@@ -338,7 +338,19 @@ public sealed class VmsAutomationService : IDisposable
             AppLog.Info("VmsAutomation: session expired during packing, auto-relogging for extended shift");
             _missingDomTicks = 0;
             _disconnectReported = false;
+            _connectClicked = false;
+            _loginSubmitted = false;
             SetState(AutomationState.LoggingIn);
+            return;
+        }
+
+        if (probe.Feed && !probe.Awb && !probe.RecordVisible)
+        {
+            AppLog.Info("VmsAutomation: camera feed dropped during extended shift, auto-reconnecting feed");
+            _missingDomTicks = 0;
+            _disconnectReported = false;
+            _connectClicked = false;
+            SetState(AutomationState.ConnectingFeed);
             return;
         }
 

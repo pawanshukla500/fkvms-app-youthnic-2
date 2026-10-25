@@ -27,8 +27,12 @@ public partial class PackingWindow : Window
 
     private readonly ObservableCollection<ProductCardModel> _modalCards = new();
     private DispatcherTimer? _modalTimer;
+    private DispatcherTimer? _maintenanceTimer;
     private int _modalCountdown;
     private long _currentSeq;
+
+    private int _shiftPackCount;
+    private int _shiftTotalUnits;
 
     private ReleaseInfo? _announcedUpdate;
     private string? _downloadedVersion;
@@ -106,6 +110,9 @@ public partial class PackingWindow : Window
         {
             await InitializeWebViewAsync();
             _updateChecker.Start();
+            _maintenanceTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(10) };
+            _maintenanceTimer.Tick += (_, _) => PerformMaintenance();
+            _maintenanceTimer.Start();
         };
     }
 
@@ -120,6 +127,10 @@ public partial class PackingWindow : Window
         }
 
         var totalUnits = result.Items.Sum(i => i.Quantity);
+        _shiftPackCount++;
+        _shiftTotalUnits += totalUnits;
+        ShiftPacksText.Text = $"Shift: {_shiftPackCount} packs ({_shiftTotalUnits} units)";
+
         var isMulti = result.Items.Count > 1 || totalUnits > 1;
 
         if (isMulti)
@@ -321,7 +332,7 @@ public partial class PackingWindow : Window
 
         var envOptions = new CoreWebView2EnvironmentOptions
         {
-            AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required"
+            AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --js-flags=--max-old-space-size=512 --disable-background-networking --disable-component-update"
         };
         var environment = await CoreWebView2Environment.CreateAsync(
             browserExecutableFolder: null,
@@ -508,12 +519,29 @@ public partial class PackingWindow : Window
 
         _downloadCts?.Cancel();
         _modalTimer?.Stop();
+        _maintenanceTimer?.Stop();
         _updateChecker.Stop();
         _updateChecker.Dispose();
         _coordinator.CancelPending();
         _automation.Stop();
         _automation.Dispose();
         _apiClient.Dispose();
+    }
+
+    private void PerformMaintenance()
+    {
+        try
+        {
+            if (_coreReady && WebView.CoreWebView2 != null)
+            {
+                WebView.CoreWebView2.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Low;
+            }
+            GC.Collect(1, GCCollectionMode.Optimized);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Info($"PackingWindow: shift maintenance warning: {ex.Message}");
+        }
     }
 
     private void ShowFatal(string message)

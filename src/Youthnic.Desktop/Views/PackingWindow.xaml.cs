@@ -177,7 +177,7 @@ public partial class PackingWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && _modalWindow != null)
+        if ((e.Key is Key.Escape or Key.Enter or Key.Space) && _modalWindow != null)
         {
             CloseModal();
             e.Handled = true;
@@ -324,7 +324,7 @@ public partial class PackingWindow : Window
 
         var envOptions = new CoreWebView2EnvironmentOptions
         {
-            AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --js-flags=--max-old-space-size=512 --disable-background-networking --disable-component-update"
+            AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --use-fake-ui-for-media-stream --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --js-flags=--max-old-space-size=512 --disable-background-networking --disable-component-update"
         };
         var environment = await CoreWebView2Environment.CreateAsync(
             browserExecutableFolder: null,
@@ -372,9 +372,14 @@ public partial class PackingWindow : Window
 
         core.PermissionRequested += (_, args) =>
         {
-            if (IsVmsOrigin(args.Uri) &&
-                (args.PermissionKind is CoreWebView2PermissionKind.Camera
-                    or CoreWebView2PermissionKind.Microphone))
+            if (args.PermissionKind is CoreWebView2PermissionKind.Camera
+                or CoreWebView2PermissionKind.Microphone)
+            {
+                args.State = CoreWebView2PermissionState.Allow;
+                return;
+            }
+
+            if (IsVmsOrigin(args.Uri))
             {
                 args.State = CoreWebView2PermissionState.Allow;
             }

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Youthnic.Desktop.Models;
@@ -13,7 +14,8 @@ public partial class MultiItemModalWindow : Window
     private readonly ObservableCollection<ProductCardModel> _cards = new();
     private readonly DispatcherTimer _timer;
     private readonly Action? _onDismissed;
-    private int _countdown = 5;
+    private int _countdown = 2;
+    private bool _isClosing;
 
     public MultiItemModalWindow(Window owner, ScanLookupResult result, Action? onDismissed = null)
     {
@@ -21,6 +23,13 @@ public partial class MultiItemModalWindow : Window
         _onDismissed = onDismissed;
 
         InitializeComponent();
+
+        Opacity = 0.0;
+        Loaded += (_, _) =>
+        {
+            var fadeIn = new DoubleAnimation(0.0, 1.0, new Duration(TimeSpan.FromMilliseconds(150)));
+            BeginAnimation(OpacityProperty, fadeIn);
+        };
 
         ProductCardsItemsControl.ItemsSource = _cards;
 
@@ -80,8 +89,19 @@ public partial class MultiItemModalWindow : Window
 
     private void SafeClose()
     {
+        if (_isClosing) return;
+        _isClosing = true;
         _timer.Stop();
         if (IsLoaded)
+        {
+            var fadeOut = new DoubleAnimation(1.0, 0.0, new Duration(TimeSpan.FromMilliseconds(150)));
+            fadeOut.Completed += (_, _) =>
+            {
+                try { Close(); } catch { }
+            };
+            BeginAnimation(OpacityProperty, fadeOut);
+        }
+        else
         {
             try { Close(); } catch { }
         }

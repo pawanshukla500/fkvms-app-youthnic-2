@@ -2,7 +2,7 @@
   'use strict';
   // Idempotent guard: never inject twice, never attach duplicate listeners.
   if (window.__youthnicScanObserver) return;
-  window.__youthnicScanObserver = { version: 2 };
+  window.__youthnicScanObserver = { version: 3 };
 
   var MIN_LEN = 4;
   var LISTENER_TAG = '__youthnicAwbListenersAttached';
@@ -47,7 +47,14 @@
     if (emitDebounceTimer) clearTimeout(emitDebounceTimer);
     emitDebounceTimer = setTimeout(function () {
       emitScan(value);
-    }, delayMs || 250);
+    }, delayMs || 150);
+  }
+
+  function handleImmediateEmit(input) {
+    if (emitDebounceTimer) clearTimeout(emitDebounceTimer);
+    emitScan(input.value);
+    // Zero-delay timeout ensures any scanner character committed on the next microtick is caught
+    setTimeout(function () { emitScan(input.value); }, 0);
   }
 
   function attach(input) {
@@ -59,25 +66,34 @@
       var key = e.key || '';
       var code = e.keyCode || 0;
       if (key === 'Enter' || key === 'Tab' || code === 13 || code === 9) {
-        if (emitDebounceTimer) clearTimeout(emitDebounceTimer);
-        emitScan(input.value);
+        handleImmediateEmit(input);
+      }
+    }, true);
+
+    input.addEventListener('keyup', function (e) {
+      var key = e.key || '';
+      var code = e.keyCode || 0;
+      if (key === 'Enter' || key === 'Tab' || code === 13 || code === 9) {
+        handleImmediateEmit(input);
       }
     }, true);
 
     input.addEventListener('input', function () {
       var val = (input.value || '').trim();
-      if (val.length >= 6) {
-        scheduleEmit(val, 250);
+      if (val.length >= 10) {
+        // Fast-path for complete tracking numbers (AWBs) - 50ms latency
+        scheduleEmit(val, 50);
+      } else if (val.length >= 6) {
+        scheduleEmit(val, 150);
       }
     }, true);
 
     input.addEventListener('change', function () {
-      if (emitDebounceTimer) clearTimeout(emitDebounceTimer);
-      emitScan(input.value);
+      handleImmediateEmit(input);
     }, true);
 
     input.addEventListener('paste', function () {
-      scheduleEmit(input.value, 150);
+      setTimeout(function () { emitScan(input.value); }, 0);
     }, true);
   }
 
@@ -95,7 +111,7 @@
   var root = document.documentElement || document.body;
   if (root) observer.observe(root, { childList: true, subtree: true });
 
-  // 150 ms polling fallback ensures scanners that do not trigger Enter or DOM mutations are never missed
+  // 100 ms polling fallback ensures scanners that do not trigger Enter or DOM mutations are never missed
   setInterval(function () {
     var input = findAwbInput();
     if (!input) {
@@ -104,10 +120,12 @@
     }
     attach(input);
     var current = (input.value || '').trim();
-    if (current.length >= 6 && current !== lastEmittedAwb) {
-      scheduleEmit(current, 250);
+    if (current.length >= 10 && current !== lastEmittedAwb) {
+      scheduleEmit(current, 50);
+    } else if (current.length >= 6 && current !== lastEmittedAwb) {
+      scheduleEmit(current, 150);
     } else if (current === '' && lastEmittedAwb !== '') {
       lastEmittedAwb = '';
     }
-  }, 150);
+  }, 100);
 })();

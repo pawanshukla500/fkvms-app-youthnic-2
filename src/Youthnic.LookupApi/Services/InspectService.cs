@@ -68,7 +68,7 @@ public sealed class InspectService(
 
             var firstImage = samples
                 .OfType<Dictionary<string, object?>>()
-                .Select(s => s["imageUrl"] as string)
+                .Select(s => s.TryGetValue("imageUrl", out var val) ? val as string : null)
                 .FirstOrDefault(u => !string.IsNullOrWhiteSpace(u));
             if (firstImage is not null)
                 result["imageFetch"] = await ProbeImageAsync(firstImage, ct);
@@ -106,9 +106,9 @@ public sealed class InspectService(
             await using var cmd = conn.CreateCommand();
             cmd.CommandTimeout = Math.Max(1, (options.QueryTimeoutMs + 999) / 1000);
             cmd.CommandText =
-                "BEGIN READ ONLY; SELECT DISTINCT o." + LookupQueryBuilder.Quoted(m.ColSeller) +
+                "SELECT DISTINCT o." + LookupQueryBuilder.Quoted(m.ColSeller) +
                 " FROM " + TableIdent(m) + " o WHERE o." + LookupQueryBuilder.Quoted(m.ColSeller) +
-                " IS NOT NULL ORDER BY 1 LIMIT 300; COMMIT;";
+                " IS NOT NULL ORDER BY 1 LIMIT 300;";
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
                 list.Add(reader.GetString(0));
@@ -165,25 +165,25 @@ public sealed class InspectService(
                         !string.IsNullOrWhiteSpace(m.ColImageUrl);
 
         var sb = new System.Text.StringBuilder(512);
-        sb.Append("BEGIN READ ONLY; SELECT o.").Append(LookupQueryBuilder.Quoted(m.ColTracking))
+        sb.Append("SELECT o.").Append(LookupQueryBuilder.Quoted(m.ColTracking))
           .Append(" AS tracking, oi.").Append(LookupQueryBuilder.Quoted(m.OrderItemsSkuColumn)).Append(" AS sku, ")
           .Append(hasSkuMap ? "m." + LookupQueryBuilder.Quoted(m.ColSkuName) : "NULL").Append(" AS sku_name, ")
           .Append(hasImages ? "im." + LookupQueryBuilder.Quoted(m.ColImageUrl) : "NULL").Append(" AS image_url, o.")
           .Append(LookupQueryBuilder.Quoted(m.ColSeller)).Append(" AS seller, COUNT(*) AS qty")
           .Append(" FROM ").Append(TableIdent(m)).Append(" o JOIN ")
-          .Append(LookupQueryBuilder.Quoted(m.OrdersItemsTable)).Append(" oi ON oi.")
+          .Append(LookupQueryBuilder.TableIdent(m.SchemaOrders, m.OrdersItemsTable)).Append(" oi ON oi.")
           .Append(LookupQueryBuilder.Quoted(m.OrderItemsOrderJoinColumn)).Append(" = o.")
           .Append(LookupQueryBuilder.Quoted(m.OrderItemsOrderJoinColumn));
         if (hasSkuMap)
-            sb.Append(" LEFT JOIN ").Append(LookupQueryBuilder.Quoted(m.SkuMapTable)).Append(" m ON m.")
+            sb.Append(" LEFT JOIN ").Append(LookupQueryBuilder.TableIdent(m.SchemaOrders, m.SkuMapTable)).Append(" m ON m.")
               .Append(LookupQueryBuilder.Quoted(m.ColSku)).Append(" = oi.")
               .Append(LookupQueryBuilder.Quoted(m.OrderItemsSkuColumn));
         if (hasImages)
-            sb.Append(" LEFT JOIN ").Append(LookupQueryBuilder.Quoted(m.ImageTable)).Append(" im ON im.")
+            sb.Append(" LEFT JOIN ").Append(LookupQueryBuilder.TableIdent(m.SchemaOrders, m.ImageTable)).Append(" im ON im.")
               .Append(LookupQueryBuilder.Quoted(m.ImageSkuJoinColumn)).Append(" = oi.")
               .Append(LookupQueryBuilder.Quoted(m.OrderItemsSkuColumn));
         sb.Append(" WHERE upper(o.").Append(LookupQueryBuilder.Quoted(m.ColSeller)).Append(") = upper($1)")
-          .Append(" GROUP BY 1,2,3,4,5 ORDER BY 1 DESC LIMIT 3; COMMIT;");
+          .Append(" GROUP BY 1,2,3,4,5 ORDER BY 1 DESC LIMIT 3;");
         return sb.ToString();
     }
 
@@ -198,7 +198,7 @@ public sealed class InspectService(
                         !string.IsNullOrWhiteSpace(m.ColImageUrl);
 
         var sb = new System.Text.StringBuilder(768);
-        sb.Append("BEGIN READ ONLY; SELECT o.").Append(LookupQueryBuilder.Quoted(m.ColTracking))
+        sb.Append("SELECT o.").Append(LookupQueryBuilder.Quoted(m.ColTracking))
           .Append(" AS tracking, (it.item ->> 'sku') AS sku, ")
           .Append(hasSkuMap
               ? "COALESCE(NULLIF(it.item ->> 'title', ''), m." + LookupQueryBuilder.Quoted(m.ColSkuName) + ")"
@@ -211,13 +211,13 @@ public sealed class InspectService(
           .Append(" FROM ").Append(TableIdent(m)).Append(" o CROSS JOIN LATERAL jsonb_array_elements(o.")
           .Append(LookupQueryBuilder.Quoted(m.ItemsJsonColumn)).Append("::jsonb) AS it(item)");
         if (hasSkuMap)
-            sb.Append(" LEFT JOIN ").Append(LookupQueryBuilder.Quoted(m.SkuMapTable)).Append(" m ON m.")
+            sb.Append(" LEFT JOIN ").Append(LookupQueryBuilder.TableIdent(m.SchemaOrders, m.SkuMapTable)).Append(" m ON m.")
               .Append(LookupQueryBuilder.Quoted(m.ColSku)).Append(" = (it.item ->> 'sku')");
         if (hasImages)
-            sb.Append(" LEFT JOIN ").Append(LookupQueryBuilder.Quoted(m.ImageTable)).Append(" im ON im.")
+            sb.Append(" LEFT JOIN ").Append(LookupQueryBuilder.TableIdent(m.SchemaOrders, m.ImageTable)).Append(" im ON im.")
               .Append(LookupQueryBuilder.Quoted(m.ImageSkuJoinColumn)).Append(" = (it.item ->> 'sku')");
         sb.Append(" WHERE upper(o.").Append(LookupQueryBuilder.Quoted(m.ColSeller)).Append(") = upper($1)")
-          .Append(" ORDER BY 1 DESC LIMIT 3; COMMIT;");
+          .Append(" ORDER BY 1 DESC LIMIT 3;");
         return sb.ToString();
     }
 

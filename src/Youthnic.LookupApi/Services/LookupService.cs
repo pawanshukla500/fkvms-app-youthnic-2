@@ -223,6 +223,15 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
             await TryEnrichMissingImagesAsync(conn, mapping, items, ct).ConfigureAwait(false);
         }
 
+        for (var i = 0; i < items.Count; i++)
+        {
+            var it = items[i];
+            if (it.SkuName == it.Sku || string.IsNullOrWhiteSpace(it.SkuName))
+            {
+                items[i] = it with { SkuName = FormatCleanTitle(it.Sku) };
+            }
+        }
+
         var ok = new LookupResponse
         {
             Status = "ok",
@@ -244,7 +253,8 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
             if (missing.Count == 0) return;
 
             var exactSkus = missing.Select(x => x.Sku.Trim()).Where(s => s.Length > 0).Distinct().ToArray();
-            var baseSkus = missing.Select(x => x.Sku.Split('_')[0].Trim()).Where(s => s.Length > 0).Distinct().ToArray();
+            var baseSkus = missing.Select(x => ExtractBaseSku(x.Sku)).Where(s => s.Length > 0).Distinct().ToArray();
+            var prefixPatterns = baseSkus.Select(b => b.ToUpperInvariant() + "%").Distinct().ToArray();
 
             var joinCol = !string.IsNullOrWhiteSpace(mapping.ImageSkuJoinColumn) ? mapping.ImageSkuJoinColumn : "sku";
             var imageTable = LookupQueryBuilder.TableIdent(mapping.SchemaOrders, mapping.ImageTable);
@@ -253,14 +263,16 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
                         (hasTitle ? $", {LookupQueryBuilder.Quoted(mapping.ColSkuName)}" : "") +
                         $" FROM {imageTable} WHERE upper({LookupQueryBuilder.Quoted(joinCol)}) = ANY($1) " +
                         $"OR upper({LookupQueryBuilder.Quoted(joinCol)}) = ANY($2) " +
+                        $"OR upper({LookupQueryBuilder.Quoted(joinCol)}) LIKE ANY($3) " +
                         $"OR {LookupQueryBuilder.Quoted(joinCol)} = ANY($1) " +
-                        $"OR {LookupQueryBuilder.Quoted(joinCol)} = ANY($2) LIMIT 20;";
+                        $"OR {LookupQueryBuilder.Quoted(joinCol)} = ANY($2) LIMIT 50;";
 
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = query;
             cmd.CommandTimeout = 2;
             cmd.Parameters.Add(new NpgsqlParameter { Value = exactSkus.Select(s => s.ToUpperInvariant()).ToArray() });
             cmd.Parameters.Add(new NpgsqlParameter { Value = baseSkus.Select(s => s.ToUpperInvariant()).ToArray() });
+            cmd.Parameters.Add(new NpgsqlParameter { Value = prefixPatterns });
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             var found = new Dictionary<string, (string imageUrl, string? title)>(StringComparer.OrdinalIgnoreCase);
@@ -280,8 +292,25 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
                 var it = items[idx];
                 if (it.ImageUrls.Length > 0) continue;
 
-                var baseSku = it.Sku.Split('_')[0].Trim();
-                if (found.TryGetValue(it.Sku, out var match) || found.TryGetValue(baseSku, out match))
+                var baseSku = ExtractBaseSku(it.Sku);
+                (string imageUrl, string? title) match = default;
+                var hasMatch = false;
+
+                if (found.TryGetValue(it.Sku, out match) || (!string.IsNullOrEmpty(baseSku) && found.TryGetValue(baseSku, out match)))
+                {
+                    hasMatch = true;
+                }
+                else if (!string.IsNullOrEmpty(baseSku))
+                {
+                    var prefixMatch = found.FirstOrDefault(kvp => kvp.Key.StartsWith(baseSku, StringComparison.OrdinalIgnoreCase));
+                    if (!string.IsNullOrEmpty(prefixMatch.Key))
+                    {
+                        match = prefixMatch.Value;
+                        hasMatch = true;
+                    }
+                }
+
+                if (hasMatch)
                 {
                     items[idx] = it with
                     {
@@ -297,6 +326,79 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
         {
             logger.LogDebug(ex, "TryEnrichMissingImagesAsync: image enrichment skipped");
         }
+    }
+
+    public static string ExtractBaseSku(string sku)
+    {
+        if (string.IsNullOrWhiteSpace(sku)) return string.Empty;
+        var s = sku.Trim();
+        var lastUnderscore = s.LastIndexOf('_');
+        if (lastUnderscore > 0)
+        {
+            return s[..lastUnderscore].Trim();
+        }
+        var lastHyphen = s.LastIndexOf('-');
+        if (lastHyphen > 0)
+        {
+            var suffix = s[(lastHyphen + 1)..].Trim();
+            if (IsKnownSize(suffix)) return s[..lastHyphen].Trim();
+        }
+        return s;
+    }
+
+    public static string? ExtractSize(string sku)
+    {
+        if (string.IsNullOrWhiteSpace(sku)) return null;
+        var s = sku.Trim();
+        var lastUnderscore = s.LastIndexOf('_');
+        if (lastUnderscore > 0 && lastUnderscore < s.Length - 1)
+        {
+            var suffix = s[(lastUnderscore + 1)..].Trim();
+            if (IsKnownSize(suffix)) return suffix.ToUpperInvariant();
+        }
+        var lastHyphen = s.LastIndexOf('-');
+        if (lastHyphen > 0 && lastHyphen < s.Length - 1)
+        {
+            var suffix = s[(lastHyphen + 1)..].Trim();
+            if (IsKnownSize(suffix)) return suffix.ToUpperInvariant();
+        }
+        return null;
+    }
+
+    public static bool IsKnownSize(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return false;
+        var u = s.Trim().ToUpperInvariant();
+        return u switch
+        {
+            "XS" or "S" or "M" or "L" or "XL" or "XXL" or "2XL" or "3XL" or "4XL" or "5XL" or "6XL" or "FREE" or "FS" => true,
+            _ => false
+        };
+    }
+
+    public static string FormatCleanTitle(string sku)
+    {
+        if (string.IsNullOrWhiteSpace(sku)) return string.Empty;
+        var s = sku.Trim();
+        var size = ExtractSize(s);
+        var baseSku = ExtractBaseSku(s);
+
+        var parts = baseSku.Split(new[] { '-', '_' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length >= 2)
+        {
+            var code = parts[0];
+            var nameParts = parts.Skip(1).ToArray();
+            var name = string.Join(" ", nameParts);
+            var sizeSuffix = size != null ? $" (Size {size})" : string.Empty;
+            return $"{name}{sizeSuffix} · {code}";
+        }
+
+        if (size != null)
+        {
+            return $"{baseSku} (Size {size})";
+        }
+
+        return s;
     }
 
     private static LookupResponse Error(string trackingId, string marketplace, string detail)

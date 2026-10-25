@@ -134,4 +134,41 @@ public class ScanImageAndLookupTests
         Assert.Equal("https://cdn.example.com/img1.jpg", validUrls[0]);
         Assert.Equal("https://cdn.example.com/img2.jpg", validUrls[1]);
     }
+
+    [Fact]
+    public void LookupResponse_WithEmptyImageUrlsAndNullablePendingSync_DeserializesGracefully()
+    {
+        var json = """
+        {
+            "status": "ok",
+            "trackingId": "FMPP4412878836",
+            "marketplace": "flipkart",
+            "detectedMarketplace": null,
+            "detectedSeller": null,
+            "message": null,
+            "items": [
+                {
+                    "sku": "SKD237-Juhi-Mehendi_M",
+                    "skuName": "SKD237-Juhi-Mehendi_M",
+                    "imageUrls": [],
+                    "seller": "ETHNIC JUNCTION - Flipkart",
+                    "quantity": 1
+                }
+            ],
+            "source": "forward_scan",
+            "pendingSync": null,
+            "hint": null,
+            "detail": null
+        }
+        """;
+
+        var response = System.Text.Json.JsonSerializer.Deserialize<LookupResponse>(
+            json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        Assert.NotNull(response);
+        Assert.Equal(LookupStatus.Ok, response.Status);
+        Assert.Null(response.PendingSync);
+        Assert.Single(response.Items!);
+        Assert.Equal("SKD237-Juhi-Mehendi_M", response.Items![0].Sku);
+        Assert.Empty(response.Items![0].ImageUrls);
+    }
 }

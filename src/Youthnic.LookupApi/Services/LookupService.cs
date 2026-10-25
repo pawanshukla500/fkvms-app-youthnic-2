@@ -216,6 +216,13 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
             return notFound;
         }
 
+        if (items.Count > 0 && items.Any(it => it.ImageUrls.Length == 0) &&
+            !string.IsNullOrWhiteSpace(mapping.ImageTable) &&
+            !string.IsNullOrWhiteSpace(mapping.ColImageUrl))
+        {
+            await TryEnrichMissingImagesAsync(conn, mapping, items, ct).ConfigureAwait(false);
+        }
+
         var ok = new LookupResponse
         {
             Status = "ok",
@@ -226,6 +233,70 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
         };
         cache.Set(key, ok);
         return ok;
+    }
+
+    private async Task TryEnrichMissingImagesAsync(
+        NpgsqlConnection conn, ForwardScanMapping mapping, List<LookupItem> items, CancellationToken ct)
+    {
+        try
+        {
+            var missing = items.Where(it => it.ImageUrls.Length == 0).ToList();
+            if (missing.Count == 0) return;
+
+            var exactSkus = missing.Select(x => x.Sku.Trim()).Where(s => s.Length > 0).Distinct().ToArray();
+            var baseSkus = missing.Select(x => x.Sku.Split('_')[0].Trim()).Where(s => s.Length > 0).Distinct().ToArray();
+
+            var joinCol = !string.IsNullOrWhiteSpace(mapping.ImageSkuJoinColumn) ? mapping.ImageSkuJoinColumn : "sku";
+            var imageTable = LookupQueryBuilder.TableIdent(mapping.SchemaOrders, mapping.ImageTable);
+            var hasTitle = !string.IsNullOrWhiteSpace(mapping.ColSkuName);
+            var query = $"SELECT {LookupQueryBuilder.Quoted(joinCol)}, {LookupQueryBuilder.Quoted(mapping.ColImageUrl)}" +
+                        (hasTitle ? $", {LookupQueryBuilder.Quoted(mapping.ColSkuName)}" : "") +
+                        $" FROM {imageTable} WHERE upper({LookupQueryBuilder.Quoted(joinCol)}) = ANY($1) " +
+                        $"OR upper({LookupQueryBuilder.Quoted(joinCol)}) = ANY($2) " +
+                        $"OR {LookupQueryBuilder.Quoted(joinCol)} = ANY($1) " +
+                        $"OR {LookupQueryBuilder.Quoted(joinCol)} = ANY($2) LIMIT 20;";
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = query;
+            cmd.CommandTimeout = 2;
+            cmd.Parameters.Add(new NpgsqlParameter { Value = exactSkus.Select(s => s.ToUpperInvariant()).ToArray() });
+            cmd.Parameters.Add(new NpgsqlParameter { Value = baseSkus.Select(s => s.ToUpperInvariant()).ToArray() });
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            var found = new Dictionary<string, (string imageUrl, string? title)>(StringComparer.OrdinalIgnoreCase);
+            while (await reader.ReadAsync(ct))
+            {
+                var foundSku = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                var img = reader.IsDBNull(1) ? null : reader.GetString(1);
+                var title = hasTitle && reader.FieldCount > 2 && !reader.IsDBNull(2) ? reader.GetString(2) : null;
+                if (!string.IsNullOrWhiteSpace(foundSku) && !string.IsNullOrWhiteSpace(img))
+                {
+                    found[foundSku] = (img, title);
+                }
+            }
+
+            for (var idx = 0; idx < items.Count; idx++)
+            {
+                var it = items[idx];
+                if (it.ImageUrls.Length > 0) continue;
+
+                var baseSku = it.Sku.Split('_')[0].Trim();
+                if (found.TryGetValue(it.Sku, out var match) || found.TryGetValue(baseSku, out match))
+                {
+                    items[idx] = it with
+                    {
+                        ImageUrls = [match.imageUrl],
+                        SkuName = (!string.IsNullOrWhiteSpace(match.title) && (it.SkuName == it.Sku || string.IsNullOrWhiteSpace(it.SkuName)))
+                            ? match.title
+                            : it.SkuName
+                    };
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "TryEnrichMissingImagesAsync: image enrichment skipped");
+        }
     }
 
     private static LookupResponse Error(string trackingId, string marketplace, string detail)

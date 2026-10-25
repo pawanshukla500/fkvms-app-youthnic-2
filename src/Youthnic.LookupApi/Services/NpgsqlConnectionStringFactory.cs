@@ -11,7 +11,7 @@ public static class NpgsqlConnectionStringFactory
 {
     public const string ReadOnlySessionOption = "-c default_transaction_read_only=on";
 
-    public static string Build(string databaseUrl, int queryTimeoutMs)
+    public static string Build(string databaseUrl, int queryTimeoutMs, int minPoolSize = 5, int maxPoolSize = 40)
     {
         if (string.IsNullOrWhiteSpace(databaseUrl))
             throw new InvalidOperationException("VMS_DATABASE_URL is required but was not set.");
@@ -31,9 +31,9 @@ public static class NpgsqlConnectionStringFactory
             ? ReadOnlySessionOption
             : builder.Options + " " + ReadOnlySessionOption;
         builder.CommandTimeout = Math.Clamp((queryTimeoutMs + 999) / 1000, 1, 30);
-        builder.MinPoolSize = 2;
-        builder.MaxPoolSize = Math.Min(builder.MaxPoolSize, 10);
-        builder.ConnectionIdleLifetime = 30;
+        builder.MinPoolSize = Math.Clamp(minPoolSize, 2, 50);
+        builder.MaxPoolSize = Math.Clamp(maxPoolSize, 10, 100);
+        builder.ConnectionIdleLifetime = 60;
         builder.ApplicationName = "youthnic-lookup-api";
         return builder.ConnectionString;
     }

@@ -10,7 +10,8 @@ using Youthnic.LookupApi.Services;
 var envCount = EnvFileLoader.Load();
 
 var options = LookupApiOptions.FromEnvironment();
-var connectionString = NpgsqlConnectionStringFactory.Build(options.DatabaseUrl, options.QueryTimeoutMs);
+var connectionString = NpgsqlConnectionStringFactory.Build(
+    options.DatabaseUrl, options.QueryTimeoutMs, options.MinPoolSize, options.MaxPoolSize);
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args });
 builder.WebHost.UseUrls(options.ApiUrl);

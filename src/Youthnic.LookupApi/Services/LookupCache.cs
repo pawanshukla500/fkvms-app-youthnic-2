@@ -15,7 +15,10 @@ public sealed class LookupCache
     private sealed class Entry
     {
         public required LookupResponse Response { get; init; }
+        public DateTimeOffset CreatedAtUtc { get; init; }
         public DateTimeOffset LastAccessUtc { get; set; }
+        public TimeSpan Ttl { get; init; }
+        public bool IsSliding { get; init; } = true;
     }
 
     private readonly MemoryCache _cache;
@@ -40,13 +43,21 @@ public sealed class LookupCache
     {
         if (_cache.TryGetValue(key, out Entry? entry) && entry is not null)
         {
-            if ((_clock() - entry.LastAccessUtc).TotalSeconds > _ttlSeconds)
+            var elapsed = entry.IsSliding
+                ? (_clock() - entry.LastAccessUtc)
+                : (_clock() - entry.CreatedAtUtc);
+
+            if (elapsed > entry.Ttl)
             {
                 _cache.Remove(key);
                 response = null!;
                 return false;
             }
-            entry.LastAccessUtc = _clock(); // sliding
+
+            if (entry.IsSliding)
+            {
+                entry.LastAccessUtc = _clock();
+            }
             response = entry.Response;
             return true;
         }
@@ -54,13 +65,25 @@ public sealed class LookupCache
         return false;
     }
 
-    public void Set(string key, LookupResponse response)
+    public void Set(string key, LookupResponse response, TimeSpan? customTtl = null, bool sliding = true)
     {
-        _cache.Set(key, new Entry { Response = response, LastAccessUtc = _clock() },
-            new MemoryCacheEntryOptions
-            {
-                SlidingExpiration = TimeSpan.FromSeconds(_ttlSeconds),
-                Size = 1,
-            });
+        var now = _clock();
+        var ttl = customTtl ?? TimeSpan.FromSeconds(_ttlSeconds);
+        var entry = new Entry
+        {
+            Response = response,
+            CreatedAtUtc = now,
+            LastAccessUtc = now,
+            Ttl = ttl,
+            IsSliding = sliding
+        };
+
+        var memOptions = new MemoryCacheEntryOptions { Size = 1 };
+        if (sliding)
+            memOptions.SlidingExpiration = ttl;
+        else
+            memOptions.AbsoluteExpirationRelativeToNow = ttl;
+
+        _cache.Set(key, entry, memOptions);
     }
 }

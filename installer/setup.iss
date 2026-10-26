@@ -225,7 +225,7 @@ begin
   MyPage.Add('Myntra VMS Username:', False);
   MyPage.Add('Myntra VMS Password:', False);
   MyPage.Add('Myntra Camera Feed ID (unique per desk station):', False);
-  MyPage.Add('Myntra Seller Account:', False);
+  MyPage.Add('Myntra Seller Account (auto-includes VB EXPORT - Myntra PPMP):', False);
   MyPage.Add('Lookup API URL (hosted server or local API):', False);
   MyPage.Add('Lookup API Key (required for hosted server):', False);
 

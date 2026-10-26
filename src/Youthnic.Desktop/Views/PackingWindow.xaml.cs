@@ -58,7 +58,7 @@ public partial class PackingWindow : Window
             () => _options.LookupApiUrl,
             () => _options.LookupApiKey,
             () => (_marketplace.ToString().ToLowerInvariant(),
-                string.IsNullOrWhiteSpace(_config.SellerAccount) ? null : _config.SellerAccount));
+                ResolveDesktopSellerParameter(_marketplace, _config.SellerAccount)));
 
         _coordinator.LookupStarted += (seq, awb) =>
         {
@@ -553,6 +553,25 @@ public partial class PackingWindow : Window
             Title = $"Youthnic Packing Desk — {_marketplace} ({_options.DeskName})  ·  v{UpdateChecker.CurrentVersion()}";
             StatusText.Text = $"Settings updated: {_options.DeskName} (User: {_config.Username}, Feed: {_config.FeedId})";
         }
+    }
+
+    public static string? ResolveDesktopSellerParameter(Marketplace marketplace, string? sellerAccount)
+    {
+        if (string.IsNullOrWhiteSpace(sellerAccount))
+            return null;
+
+        var trimmed = sellerAccount.Trim();
+
+        // For Myntra desks configured with default seller "ETHNIC JUNCTION - Myntra Youthnic" (or "VB EXPORT - Myntra PPMP"),
+        // passing null allows both local and hosted Lookup APIs to automatically query across BOTH Myntra accounts.
+        if (marketplace == Marketplace.Myntra &&
+            (string.Equals(trimmed, DeskOptions.DefaultMyntraSeller, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(trimmed, DeskOptions.SecondaryMyntraSeller, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        return trimmed;
     }
 
     private void ShowFatal(string message)

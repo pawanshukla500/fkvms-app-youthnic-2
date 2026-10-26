@@ -19,6 +19,62 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
 {
     private const string NotFoundHint = "Order may not be synced yet (Forward Scan copies every ~5 minutes)";
 
+    public const string SellerFlipkart = "ETHNIC JUNCTION - FLIPKART";
+    public const string SellerMyntraYouthnic = "ETHNIC JUNCTION - MYNTRA YOUTHNIC";
+    public const string SellerMyntraPpmp = "VB EXPORT - MYNTRA PPMP";
+
+    public static readonly string[] DefaultFlipkartSellers = [SellerFlipkart];
+    public static readonly string[] DefaultMyntraSellers = [SellerMyntraYouthnic, SellerMyntraPpmp];
+
+    /// <summary>
+    /// Resolves seller account filters for a given marketplace.
+    /// For Myntra, both "ETHNIC JUNCTION - Myntra Youthnic" and "VB EXPORT - Myntra PPMP"
+    /// are automatically included regardless of whether the desk client specifies one or none.
+    /// </summary>
+    public static string[]? ResolveSellerFilters(string marketplace, string? seller)
+    {
+        var mp = (marketplace ?? string.Empty).Trim().ToLowerInvariant();
+
+        if (mp.Equals("myntra", StringComparison.OrdinalIgnoreCase))
+        {
+            // Myntra marketplace encompasses BOTH seller accounts:
+            // "ETHNIC JUNCTION - Myntra Youthnic" and "VB EXPORT - Myntra PPMP".
+            // Even if the desk was configured with only "ETHNIC JUNCTION - Myntra Youthnic"
+            // (e.g. at install time), Myntra lookups MUST automatically include both accounts.
+            var set = new HashSet<string>(DefaultMyntraSellers, StringComparer.OrdinalIgnoreCase);
+
+            if (!string.IsNullOrWhiteSpace(seller))
+            {
+                var parts = seller.Split([',', ';', '|', '+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                foreach (var part in parts)
+                {
+                    set.Add(part.ToUpperInvariant());
+                }
+            }
+
+            return set.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+
+        if (mp.Equals("flipkart", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(seller))
+            {
+                var parts = seller.Split([',', ';', '|', '+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                return parts.Select(p => p.ToUpperInvariant()).Distinct().OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+            }
+
+            return DefaultFlipkartSellers;
+        }
+
+        if (!string.IsNullOrWhiteSpace(seller))
+        {
+            var parts = seller.Split([',', ';', '|', '+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return parts.Select(p => p.ToUpperInvariant()).Distinct().OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+
+        return null;
+    }
+
     public Task<LookupResponse> LookupAsync(ForwardScanMapping mapping, string marketplace, string trackingId, CancellationToken ct)
         => LookupAsync(mapping, marketplace, trackingId, seller: null, ct);
 
@@ -32,20 +88,7 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
         trackingId = (trackingId ?? string.Empty).Trim().ToUpperInvariant();
         marketplace = (marketplace ?? string.Empty).Trim().ToLowerInvariant();
 
-        string[]? sellerFilters = null;
-        if (!string.IsNullOrWhiteSpace(seller))
-        {
-            sellerFilters = [seller.Trim().ToUpperInvariant()];
-        }
-        else if (marketplace.Equals("flipkart", StringComparison.OrdinalIgnoreCase))
-        {
-            sellerFilters = ["ETHNIC JUNCTION - FLIPKART"];
-        }
-        else if (marketplace.Equals("myntra", StringComparison.OrdinalIgnoreCase))
-        {
-            sellerFilters = ["ETHNIC JUNCTION - MYNTRA YOUTHNIC", "VB EXPORT - MYNTRA PPMP"];
-        }
-
+        var sellerFilters = ResolveSellerFilters(marketplace, seller);
         var sellerCacheKey = sellerFilters is { Length: > 0 } ? string.Join("+", sellerFilters) : null;
         var key = LookupCache.KeyFor(marketplace, trackingId, sellerCacheKey);
         if (cache.TryGet(key, out var cached))
@@ -257,7 +300,27 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
 
             var exactSkus = missing.Select(x => x.Sku.Trim()).Where(s => s.Length > 0).Distinct().ToArray();
             var baseSkus = missing.Select(x => ExtractBaseSku(x.Sku)).Where(s => s.Length > 0).Distinct().ToArray();
-            var prefixPatterns = baseSkus.Select(b => b.ToUpperInvariant() + "%").Distinct().ToArray();
+
+            var candidateSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sku in exactSkus)
+            {
+                candidateSkus.Add(sku);
+                candidateSkus.Add(NormalizeSpacing(sku));
+            }
+            foreach (var baseSku in baseSkus)
+            {
+                candidateSkus.Add(baseSku);
+                candidateSkus.Add(baseSku.Replace('_', '-'));
+                candidateSkus.Add(baseSku.Replace('-', '_'));
+                candidateSkus.Add(NormalizeSpacing(baseSku));
+            }
+
+            var exactParams = candidateSkus.Select(s => s.ToUpperInvariant()).ToArray();
+            var prefixPatterns = baseSkus
+                .Where(b => b.Length >= 3)
+                .Select(b => b.ToUpperInvariant() + "%")
+                .Distinct()
+                .ToArray();
 
             var joinCol = !string.IsNullOrWhiteSpace(mapping.ImageSkuJoinColumn) ? mapping.ImageSkuJoinColumn : "sku";
             var imageTable = LookupQueryBuilder.TableIdent(mapping.SchemaOrders, mapping.ImageTable);
@@ -265,17 +328,15 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
             var query = $"SELECT {LookupQueryBuilder.Quoted(joinCol)}, {LookupQueryBuilder.Quoted(mapping.ColImageUrl)}" +
                         (hasTitle ? $", {LookupQueryBuilder.Quoted(mapping.ColSkuName)}" : "") +
                         $" FROM {imageTable} WHERE upper({LookupQueryBuilder.Quoted(joinCol)}) = ANY($1) " +
-                        $"OR upper({LookupQueryBuilder.Quoted(joinCol)}) = ANY($2) " +
-                        $"OR upper({LookupQueryBuilder.Quoted(joinCol)}) LIKE ANY($3) " +
-                        $"OR {LookupQueryBuilder.Quoted(joinCol)} = ANY($1) " +
-                        $"OR {LookupQueryBuilder.Quoted(joinCol)} = ANY($2) LIMIT 50;";
+                        (prefixPatterns.Length > 0 ? $"OR upper({LookupQueryBuilder.Quoted(joinCol)}) LIKE ANY($2) " : "") +
+                        $"OR {LookupQueryBuilder.Quoted(joinCol)} = ANY($1) LIMIT 50;";
 
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = query;
             cmd.CommandTimeout = 2;
-            cmd.Parameters.Add(new NpgsqlParameter { Value = exactSkus.Select(s => s.ToUpperInvariant()).ToArray() });
-            cmd.Parameters.Add(new NpgsqlParameter { Value = baseSkus.Select(s => s.ToUpperInvariant()).ToArray() });
-            cmd.Parameters.Add(new NpgsqlParameter { Value = prefixPatterns });
+            cmd.Parameters.Add(new NpgsqlParameter { Value = exactParams });
+            if (prefixPatterns.Length > 0)
+                cmd.Parameters.Add(new NpgsqlParameter { Value = prefixPatterns });
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             var found = new Dictionary<string, (string imageUrl, string? title)>(StringComparer.OrdinalIgnoreCase);
@@ -299,17 +360,38 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
                 (string imageUrl, string? title) match = default;
                 var hasMatch = false;
 
-                if (found.TryGetValue(it.Sku, out match) || (!string.IsNullOrEmpty(baseSku) && found.TryGetValue(baseSku, out match)))
+                if (found.TryGetValue(it.Sku, out match) ||
+                    (!string.IsNullOrEmpty(baseSku) && found.TryGetValue(baseSku, out match)))
                 {
                     hasMatch = true;
                 }
                 else if (!string.IsNullOrEmpty(baseSku))
                 {
-                    var prefixMatch = found.FirstOrDefault(kvp => kvp.Key.StartsWith(baseSku, StringComparison.OrdinalIgnoreCase));
+                    var prefixMatch = found.FirstOrDefault(kvp =>
+                        kvp.Key.StartsWith(baseSku, StringComparison.OrdinalIgnoreCase) ||
+                        baseSku.StartsWith(kvp.Key, StringComparison.OrdinalIgnoreCase));
                     if (!string.IsNullOrEmpty(prefixMatch.Key))
                     {
                         match = prefixMatch.Value;
                         hasMatch = true;
+                    }
+                    else
+                    {
+                        var normBase = NormalizeSku(baseSku);
+                        if (normBase.Length >= 4)
+                        {
+                            var normMatch = found.FirstOrDefault(kvp =>
+                            {
+                                var k = NormalizeSku(kvp.Key);
+                                return k.StartsWith(normBase, StringComparison.OrdinalIgnoreCase) ||
+                                       normBase.StartsWith(k, StringComparison.OrdinalIgnoreCase);
+                            });
+                            if (!string.IsNullOrEmpty(normMatch.Key))
+                            {
+                                match = normMatch.Value;
+                                hasMatch = true;
+                            }
+                        }
                     }
                 }
 
@@ -329,6 +411,18 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
         {
             logger.LogDebug(ex, "TryEnrichMissingImagesAsync: image enrichment skipped");
         }
+    }
+
+    public static string NormalizeSpacing(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return string.Empty;
+        return System.Text.RegularExpressions.Regex.Replace(s.Trim(), @"\s*([-_])\s*", "$1");
+    }
+
+    public static string NormalizeSku(string sku)
+    {
+        if (string.IsNullOrWhiteSpace(sku)) return string.Empty;
+        return System.Text.RegularExpressions.Regex.Replace(sku, @"[\s\-_]+", "").ToUpperInvariant();
     }
 
     public static string ExtractBaseSku(string sku)
@@ -374,7 +468,7 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
         var u = s.Trim().ToUpperInvariant();
         return u switch
         {
-            "XS" or "S" or "M" or "L" or "XL" or "XXL" or "2XL" or "3XL" or "4XL" or "5XL" or "6XL" or "FREE" or "FS" => true,
+            "XXS" or "XS" or "S" or "M" or "L" or "XL" or "XXL" or "2XL" or "3XL" or "4XL" or "5XL" or "6XL" or "FREE" or "FS" => true,
             _ => false
         };
     }

@@ -48,7 +48,12 @@ public sealed record DeskOptions(
     public const string DefaultPassword = "Ethnic@123";
     public const string DefaultFeedId = "9e5195bd";
     public const string DefaultFlipkartSeller = "ETHNIC JUNCTION - Flipkart";
+    /// <summary>
+    /// Default display seller account for Myntra packing desks. Note that Myntra lookups
+    /// automatically query across both 'ETHNIC JUNCTION - Myntra Youthnic' and 'VB EXPORT - Myntra PPMP'.
+    /// </summary>
     public const string DefaultMyntraSeller = "ETHNIC JUNCTION - Myntra Youthnic";
+    public const string SecondaryMyntraSeller = "VB EXPORT - Myntra PPMP";
 
     public const string DefaultFlipkartUsername = DefaultUsername;
     public const string DefaultFlipkartPassword = DefaultPassword;

@@ -114,7 +114,7 @@
                         <ComboBoxItem Content="ETHNIC JUNCTION - Myntra Youthnic"/>
                         <ComboBoxItem Content="VB EXPORT - Myntra PPMP"/>
                     </ComboBox>
-                    <TextBlock Text="Exact Forward Scan seller name, e.g. ETHNIC JUNCTION - Myntra Youthnic or VB EXPORT - Myntra PPMP. Pick a preset or type any other account."
+                    <TextBlock Text="Defaults to ETHNIC JUNCTION - Myntra Youthnic. Myntra scans automatically include and search across BOTH 'ETHNIC JUNCTION - Myntra Youthnic' and 'VB EXPORT - Myntra PPMP'."
                                FontSize="11" Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                 </StackPanel>
 

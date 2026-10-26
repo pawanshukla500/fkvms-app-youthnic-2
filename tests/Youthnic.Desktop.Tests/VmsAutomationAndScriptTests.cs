@@ -112,4 +112,17 @@ public class VmsAutomationAndScriptTests
         Assert.Contains("el.focus()", js);
         Assert.Contains("el.select()", js);
     }
+
+    [Fact]
+    public void VmsAutomationService_UpdateConfig_AcceptsNewConfig()
+    {
+        var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+        using var service = new VmsAutomationService(dispatcher);
+        var initial = new Youthnic.Desktop.Models.MarketplaceConfig("https://example.com", "user1", "pass1", "feed1");
+        var updated = new Youthnic.Desktop.Models.MarketplaceConfig("https://example.com", "user2", "pass2", "feed2");
+
+        service.UpdateConfig(updated);
+        // Method should execute cleanly and update internal config without throwing
+        Assert.Equal(AutomationState.Starting, service.State);
+    }
 }

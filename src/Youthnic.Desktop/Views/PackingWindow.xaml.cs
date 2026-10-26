@@ -549,6 +549,7 @@ public partial class PackingWindow : Window
         {
             _options = SecureConfigStore.Load();
             _config = _options.For(_marketplace);
+            _automation.UpdateConfig(_config);
             Title = $"Youthnic Packing Desk — {_marketplace} ({_options.DeskName})  ·  v{UpdateChecker.CurrentVersion()}";
             StatusText.Text = $"Settings updated: {_options.DeskName} (User: {_config.Username}, Feed: {_config.FeedId})";
         }

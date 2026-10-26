@@ -104,6 +104,12 @@ public sealed class VmsAutomationService : IDisposable
         _ = Task.Run(() => LoopAsync(_loopCts.Token));
     }
 
+    public void UpdateConfig(MarketplaceConfig config)
+    {
+        _config = config;
+        AppLog.Info($"VmsAutomation: updated credentials/feed for {_marketplace} (User: {config.Username}, Feed: {config.FeedId})");
+    }
+
     public void Stop()
     {
         _loopCts?.Cancel();

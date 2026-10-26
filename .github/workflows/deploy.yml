@@ -52,24 +52,30 @@ jobs:
         run: |
           python3 - <<'PY' > env-vars.json
           import json, os
-          payload = [
-              {"key": "VMS_DATABASE_URL", "value": os.environ["VMS_DATABASE_URL"]},
-              {"key": "LOOKUP_API_KEY", "value": os.environ["LOOKUP_API_KEY"]},
-              {"key": "VMS_DATABASE_READ_ONLY", "value": "true"},
-              {"key": "VMS_DB_QUERY_TIMEOUT_MS", "value": "2000"},
-              {"key": "VMS_LOOKUP_CACHE_SECONDS", "value": "60"},
-              {"key": "DOTNET_GCConserveMemory", "value": "1"},
-              {"key": "FS_SCHEMA_ORDERS", "value": "public"},
-              {"key": "FS_ORDERS_TABLE", "value": "oms_orders"},
-              {"key": "FS_COL_TRACKING", "value": "tracking_norm"},
-              {"key": "FS_COL_SELLER", "value": "channel_label"},
-              {"key": "FS_ITEMS_JSON_COLUMN", "value": "items_json"},
-              {"key": "FS_SKU_MAP_TABLE", "value": "sku_photos"},
-              {"key": "FS_COL_SKU", "value": "sku"},
-              {"key": "FS_COL_SKU_NAME", "value": "title"},
-              {"key": "FS_IMAGE_TABLE", "value": "sku_photos"},
-              {"key": "FS_COL_IMAGE_URL", "value": "image_url"}
-          ]
+          vars_dict = {
+              "VMS_DATABASE_READ_ONLY": "true",
+              "VMS_DB_QUERY_TIMEOUT_MS": "2000",
+              "VMS_LOOKUP_CACHE_SECONDS": "60",
+              "DOTNET_GCConserveMemory": "1",
+              "FS_SCHEMA_ORDERS": "public",
+              "FS_ORDERS_TABLE": "oms_orders",
+              "FS_COL_TRACKING": "tracking_norm",
+              "FS_COL_SELLER": "channel_label",
+              "FS_ITEMS_JSON_COLUMN": "items_json",
+              "FS_SKU_MAP_TABLE": "sku_photos",
+              "FS_COL_SKU": "sku",
+              "FS_COL_SKU_NAME": "title",
+              "FS_IMAGE_TABLE": "sku_photos",
+              "FS_COL_IMAGE_URL": "image_url"
+          }
+          db_url = os.environ.get("VMS_DATABASE_URL", "").strip()
+          if db_url:
+              vars_dict["VMS_DATABASE_URL"] = db_url
+          api_key = os.environ.get("LOOKUP_API_KEY", "").strip()
+          if api_key:
+              vars_dict["LOOKUP_API_KEY"] = api_key
+
+          payload = [{"key": k, "value": v} for k, v in vars_dict.items()]
           print(json.dumps(payload))
           PY
           curl -sS --fail-with-body -X PUT \

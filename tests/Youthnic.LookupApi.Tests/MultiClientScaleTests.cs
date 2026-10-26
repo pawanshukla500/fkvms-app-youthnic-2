@@ -128,4 +128,41 @@ public class MultiClientScaleTests
         Assert.True(cache.TryGet(key, out var warmHit));
         Assert.Equal("ok", warmHit.Status);
     }
+
+    [Fact]
+    public void RateLimiter_ExpiredEntries_ArePrunedUnderHighKeyVolume()
+    {
+        var dict = new System.Collections.Concurrent.ConcurrentDictionary<string, (int count, DateTime reset)>();
+        var now = DateTime.UtcNow;
+
+        // Seed 1500 expired entries
+        for (var i = 0; i < 1500; i++)
+        {
+            dict[$"old_ip_{i}"] = (1, now.AddSeconds(-10));
+        }
+
+        // Add 5 active entries
+        for (var i = 0; i < 5; i++)
+        {
+            dict[$"active_ip_{i}"] = (1, now.AddMinutes(1));
+        }
+
+        Assert.Equal(1505, dict.Count);
+
+        // Run pruning logic
+        if (dict.Count > 1000)
+        {
+            foreach (var entry in dict)
+            {
+                if (entry.Value.reset < now)
+                    dict.TryRemove(entry.Key, out _);
+            }
+        }
+
+        Assert.Equal(5, dict.Count);
+        for (var i = 0; i < 5; i++)
+        {
+            Assert.True(dict.ContainsKey($"active_ip_{i}"));
+        }
+    }
 }

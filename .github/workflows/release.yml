@@ -53,10 +53,13 @@ jobs:
             -replace '<AssemblyVersion>.*</AssemblyVersion>', "<AssemblyVersion>$v</AssemblyVersion>" |
             Set-Content $csproj
 
+      - name: Run unit tests
+        run: dotnet test YouthnicPackingDesk.sln -c Release --verbosity normal
+
       - name: Publish Desktop + LookupApi (self-contained win-x64)
         run: |
           dotnet restore YouthnicPackingDesk.sln
-          powershell -File installer/publish.ps1
+          powershell -ExecutionPolicy Bypass -File installer/publish.ps1
 
       - name: Install Inno Setup 6
         run: choco install innosetup -y --no-progress

@@ -203,6 +203,17 @@ app.MapGet("/api/track", async Task<IResult> (
 {
     var ip = http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     var now = DateTime.UtcNow;
+
+    // Prune expired entries when dictionary grows to prevent unbounded memory growth (CWE-400)
+    if (ipRateLimits.Count > 1000)
+    {
+        foreach (var entry in ipRateLimits)
+        {
+            if (entry.Value.reset < now)
+                ipRateLimits.TryRemove(entry.Key, out _);
+        }
+    }
+
     var rate = ipRateLimits.AddOrUpdate(ip,
         _ => (1, now.AddMinutes(1)),
         (_, old) => old.reset < now ? (1, now.AddMinutes(1)) : (old.count + 1, old.reset));

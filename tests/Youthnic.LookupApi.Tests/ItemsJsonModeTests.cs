@@ -59,8 +59,23 @@ public class LookupQueryBuilderItemsJsonTests
 
         Assert.Contains("COALESCE(NULLIF(it.item ->> 'title', ''), m.\"title\") AS sku_name", sql);
         Assert.Contains("COALESCE(NULLIF(it.item ->> 'image_url', ''), im.\"image_url\") AS image_url", sql);
-        Assert.Contains("LEFT JOIN \"public\".\"sku_photos\" m ON (m.\"sku\" = upper((it.item ->> 'sku')) OR m.\"sku\" = (it.item ->> 'sku'))", sql);
-        Assert.Contains("LEFT JOIN \"public\".\"sku_photos\" im ON (im.\"sku\" = upper((it.item ->> 'sku')) OR im.\"sku\" = (it.item ->> 'sku'))", sql);
+        Assert.Contains("LEFT JOIN LATERAL (SELECT sm.\"title\" FROM \"public\".\"sku_photos\" sm", sql);
+        Assert.Contains("LIMIT 1) m ON true", sql);
+        Assert.Contains("LEFT JOIN LATERAL (SELECT sim.\"image_url\" FROM \"public\".\"sku_photos\" sim", sql);
+        Assert.Contains("LIMIT 1) im ON true", sql);
+    }
+
+    [Fact]
+    public void Build_ItemsJsonMode_LateralJoinsEnforceLimit1ToPreventCartesianMultiplication()
+    {
+        var sql = LookupQueryBuilder.Build(JsonMapping(), out _);
+
+        // When sku_photos contains multiple entries for a single SKU (e.g. uppercase vs mixed case,
+        // or across multiple channels), LIMIT 1 ensures that exactly 1 row per item is returned
+        // instead of multiplying the line items and inflating the calculated quantity.
+        Assert.Matches(@"LEFT JOIN LATERAL \(SELECT sm\.""title"" FROM ""public""\.""sku_photos"" sm WHERE .+ LIMIT 1\) m ON true", sql);
+        Assert.Matches(@"LEFT JOIN LATERAL \(SELECT sim\.""image_url"" FROM ""public""\.""sku_photos"" sim WHERE .+ LIMIT 1\) im ON true", sql);
+        Assert.Contains("COALESCE(it.item ->> 'sub_order_id', it.item ->> 'id', '') AS sub_order_id", sql);
     }
 
     [Fact]

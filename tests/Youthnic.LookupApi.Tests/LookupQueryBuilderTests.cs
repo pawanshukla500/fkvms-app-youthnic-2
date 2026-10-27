@@ -38,8 +38,10 @@ public class LookupQueryBuilderTests
         Assert.Contains("lower($2)", sql);      // marketplace via parameter
         Assert.Contains("\"public\".\"orders\" o", sql);
         Assert.Contains("\"order_items\" oi", sql);
-        Assert.Contains("LEFT JOIN \"public\".\"sku_map\" m", sql);
-        Assert.Contains("LEFT JOIN \"public\".\"product_images\" im", sql);
+        Assert.Contains("LEFT JOIN LATERAL (SELECT sm.\"sku_name\" FROM \"public\".\"sku_map\" sm", sql);
+        Assert.Contains("LIMIT 1) m ON true", sql);
+        Assert.Contains("LEFT JOIN LATERAL (SELECT sim.\"image_url\" FROM \"public\".\"product_images\" sim", sql);
+        Assert.Contains("LIMIT 1) im ON true", sql);
     }
 
     [Fact]
@@ -105,6 +107,15 @@ public class LookupQueryBuilderTests
             FullMapping() with { OrdersItemsTable = "order_items", ColSeller = "order" }, out _);
         Assert.Contains("\"order_items\"", sql);
         Assert.Contains("o.\"order\" AS seller", sql);
+    }
+
+    [Fact]
+    public void Build_ItemsTableMode_LateralJoinsEnforceLimit1ToPreventCartesianMultiplication()
+    {
+        var sql = LookupQueryBuilder.Build(FullMapping(), out _);
+
+        Assert.Matches(@"LEFT JOIN LATERAL \(SELECT sm\.""sku_name"" FROM ""public""\.""sku_map"" sm WHERE .+ LIMIT 1\) m ON true", sql);
+        Assert.Matches(@"LEFT JOIN LATERAL \(SELECT sim\.""image_url"" FROM ""public""\.""product_images"" sim WHERE .+ LIMIT 1\) im ON true", sql);
     }
 }
 

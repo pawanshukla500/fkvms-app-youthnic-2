@@ -111,6 +111,7 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
 
         var items = new List<LookupItem>();
         var index = new Dictionary<(string Sku, string? Seller), int>();
+        var seenSubOrderIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         await using var conn = await dataSource.OpenConnectionAsync(ct);
         await using var cmd = conn.CreateCommand();
@@ -138,7 +139,17 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
                 // The items-JSON shape returns a per-row qty column (index 4); the
                 // items-table shape has no such column and counts one row as one unit.
                 var qty = reader.FieldCount > 4 && !reader.IsDBNull(4) ? Convert.ToInt32(reader.GetValue(4)) : 1;
+                var subOrderId = reader.FieldCount > 5 && !reader.IsDBNull(5) ? reader.GetString(5) : null;
                 if (sku.Length == 0) continue;
+
+                if (!string.IsNullOrEmpty(subOrderId))
+                {
+                    if (!seenSubOrderIds.Add(subOrderId))
+                    {
+                        // Duplicate line item from upstream join or multi-row match; skip to avoid multiplying quantity
+                        continue;
+                    }
+                }
 
                 if (index.TryGetValue((sku, sellerValue), out var i))
                 {

@@ -75,13 +75,17 @@ public static class LookupQueryBuilder
           .Append(" oi ON oi.").Append(Quoted(m.OrderItemsOrderJoinColumn))
           .Append(" = o.").Append(Quoted(m.OrderItemsOrderJoinColumn));
         if (hasSkuMap)
-            sb.Append(" LEFT JOIN ").Append(TableIdent(m.SchemaOrders, m.SkuMapTable))
-              .Append(" m ON (m.").Append(Quoted(m.ColSku)).Append(" = upper(oi.").Append(Quoted(m.OrderItemsSkuColumn))
-              .Append(") OR m.").Append(Quoted(m.ColSku)).Append(" = oi.").Append(Quoted(m.OrderItemsSkuColumn)).Append(")");
+            sb.Append(" LEFT JOIN LATERAL (SELECT sm.").Append(Quoted(m.ColSkuName))
+              .Append(" FROM ").Append(TableIdent(m.SchemaOrders, m.SkuMapTable))
+              .Append(" sm WHERE (sm.").Append(Quoted(m.ColSku)).Append(" = upper(oi.").Append(Quoted(m.OrderItemsSkuColumn))
+              .Append(") OR sm.").Append(Quoted(m.ColSku)).Append(" = oi.").Append(Quoted(m.OrderItemsSkuColumn))
+              .Append(") LIMIT 1) m ON true");
         if (hasImages)
-            sb.Append(" LEFT JOIN ").Append(TableIdent(m.SchemaOrders, m.ImageTable))
-              .Append(" im ON (im.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = upper(oi.").Append(Quoted(m.OrderItemsSkuColumn))
-              .Append(") OR im.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = oi.").Append(Quoted(m.OrderItemsSkuColumn)).Append(")");
+            sb.Append(" LEFT JOIN LATERAL (SELECT sim.").Append(Quoted(m.ColImageUrl))
+              .Append(" FROM ").Append(TableIdent(m.SchemaOrders, m.ImageTable))
+              .Append(" sim WHERE (sim.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = upper(oi.").Append(Quoted(m.OrderItemsSkuColumn))
+              .Append(") OR sim.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = oi.").Append(Quoted(m.OrderItemsSkuColumn))
+              .Append(") LIMIT 1) im ON true");
         sb.Append(" WHERE (o.").Append(Quoted(m.ColTracking)).Append(" = upper($1) OR upper(o.").Append(Quoted(m.ColTracking)).Append(") = upper($1))");
         usesMarketplaceParameter = !string.IsNullOrWhiteSpace(m.ColMarketplace);
         if (usesMarketplaceParameter)
@@ -121,17 +125,22 @@ public static class LookupQueryBuilder
         sb.Append(string.IsNullOrWhiteSpace(m.ColSeller) ? "NULL" : "o." + Quoted(m.ColSeller)).Append(" AS seller, ");
         // Defensive qty parse: bad JSON data must not error the lookup; clamp to >= 1.
         sb.Append("GREATEST(CASE WHEN (it.item ->> 'qty') ~ '^[0-9]+$' ")
-          .Append("THEN (it.item ->> 'qty')::int ELSE 1 END, 1) AS qty");
+          .Append("THEN (it.item ->> 'qty')::int ELSE 1 END, 1) AS qty, ");
+        sb.Append("COALESCE(it.item ->> 'sub_order_id', it.item ->> 'id', '') AS sub_order_id");
         sb.Append(" FROM ").Append(orders).Append(" o CROSS JOIN LATERAL jsonb_array_elements(o.")
           .Append(itemsJson).Append("::jsonb) AS it(item)");
         if (hasSkuMap)
-            sb.Append(" LEFT JOIN ").Append(TableIdent(m.SchemaOrders, m.SkuMapTable))
-              .Append(" m ON (m.").Append(Quoted(m.ColSku)).Append(" = upper(").Append(JsonSkuExpression)
-              .Append(") OR m.").Append(Quoted(m.ColSku)).Append(" = ").Append(JsonSkuExpression).Append(")");
+            sb.Append(" LEFT JOIN LATERAL (SELECT sm.").Append(Quoted(m.ColSkuName))
+              .Append(" FROM ").Append(TableIdent(m.SchemaOrders, m.SkuMapTable))
+              .Append(" sm WHERE (sm.").Append(Quoted(m.ColSku)).Append(" = upper(").Append(JsonSkuExpression)
+              .Append(") OR sm.").Append(Quoted(m.ColSku)).Append(" = ").Append(JsonSkuExpression)
+              .Append(") LIMIT 1) m ON true");
         if (hasImages)
-            sb.Append(" LEFT JOIN ").Append(TableIdent(m.SchemaOrders, m.ImageTable))
-              .Append(" im ON (im.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = upper(").Append(JsonSkuExpression)
-              .Append(") OR im.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = ").Append(JsonSkuExpression).Append(")");
+            sb.Append(" LEFT JOIN LATERAL (SELECT sim.").Append(Quoted(m.ColImageUrl))
+              .Append(" FROM ").Append(TableIdent(m.SchemaOrders, m.ImageTable))
+              .Append(" sim WHERE (sim.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = upper(").Append(JsonSkuExpression)
+              .Append(") OR sim.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = ").Append(JsonSkuExpression)
+              .Append(") LIMIT 1) im ON true");
         sb.Append(" WHERE (o.").Append(Quoted(m.ColTracking)).Append(" = upper($1) OR upper(o.").Append(Quoted(m.ColTracking)).Append(") = upper($1))");
         usesMarketplaceParameter = !string.IsNullOrWhiteSpace(m.ColMarketplace);
         if (usesMarketplaceParameter)

@@ -122,6 +122,15 @@
 
   var loginLoading = !!(loginBtn && (loginBtn.classList.contains('ant-btn-loading') || loginBtn.disabled));
 
+  var hasToken = false;
+  try {
+    var rawUser = localStorage.getItem('fkuser') || localStorage.getItem('__youthnic_fkuser_backup');
+    if (rawUser) {
+      var u = JSON.parse(rawUser);
+      hasToken = !!(u && (u.token || u.accessToken));
+    }
+  } catch (e) {}
+
   return JSON.stringify({
     url: location.href,
     ready: document.readyState,
@@ -134,6 +143,7 @@
     loginLoading: loginLoading,
     connectVisible: !!(connectBtn && visible(connectBtn)),
     recordVisible: isPacking,
-    isPacking: isPacking
+    isPacking: isPacking,
+    hasToken: hasToken
   });
 })()

@@ -149,15 +149,10 @@ public static class VmsScripts
           if (el._valueTracker) { el._valueTracker.setValue('__init__'); }
           el.dispatchEvent(new Event('input', { bubbles: true }));
 
-          var idx = 0;
-          function typeNext() {
-            if (idx >= text.length) {
-              el.dispatchEvent(new Event('change', { bubbles: true }));
-              try { el.blur(); } catch (e) {}
-              return;
-            }
-            var char = text[idx++];
-            var current = (el.value || '') + char;
+          // Fire synthetic keyboard + input events synchronously for full framework / Ant-Design fidelity
+          for (var idx = 0; idx < text.length; idx++) {
+            var char = text[idx];
+            var current = text.substring(0, idx + 1);
 
             var kd = new KeyboardEvent('keydown', { key: char, code: 'Key' + char.toUpperCase(), bubbles: true, cancelable: true });
             var kp = new KeyboardEvent('keypress', { key: char, charCode: char.charCodeAt(0), bubbles: true, cancelable: true });
@@ -172,12 +167,11 @@ public static class VmsScripts
 
             var ku = new KeyboardEvent('keyup', { key: char, code: 'Key' + char.toUpperCase(), bubbles: true, cancelable: true });
             el.dispatchEvent(ku);
-
-            var delay = 35 + Math.floor(Math.random() * 25);
-            setTimeout(typeNext, delay);
           }
-          typeNext();
-          return 'typing';
+
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          try { el.blur(); } catch (e) {}
+          return 'filled';
         }
         """;
 

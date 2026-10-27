@@ -324,7 +324,7 @@ public partial class PackingWindow : Window
 
         var envOptions = new CoreWebView2EnvironmentOptions
         {
-            AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --use-fake-ui-for-media-stream --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --js-flags=--max-old-space-size=512 --disable-background-networking --disable-component-update"
+            AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --use-fake-ui-for-media-stream --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --js-flags=--max-old-space-size=512 --disable-features=CalculateNativeWinOcclusion"
         };
         var environment = await CoreWebView2Environment.CreateAsync(
             browserExecutableFolder: null,
@@ -530,11 +530,7 @@ public partial class PackingWindow : Window
     {
         try
         {
-            if (_coreReady && WebView.CoreWebView2 != null)
-            {
-                WebView.CoreWebView2.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Low;
-            }
-            GC.Collect(1, GCCollectionMode.Optimized);
+            GC.Collect(2, GCCollectionMode.Optimized);
         }
         catch (Exception ex)
         {

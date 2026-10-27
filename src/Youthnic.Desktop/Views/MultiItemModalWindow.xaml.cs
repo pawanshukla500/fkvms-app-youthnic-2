@@ -14,7 +14,7 @@ public partial class MultiItemModalWindow : Window
     private readonly ObservableCollection<ProductCardModel> _cards = new();
     private readonly DispatcherTimer _timer;
     private readonly Action? _onDismissed;
-    private int _countdown = 2;
+    private int _countdown = 6;
     private bool _isClosing;
 
     public MultiItemModalWindow(Window owner, ScanLookupResult result, Action? onDismissed = null)

@@ -125,4 +125,69 @@ public class VmsAutomationAndScriptTests
         // Method should execute cleanly and update internal config without throwing
         Assert.Equal(AutomationState.Starting, service.State);
     }
+
+    [Fact]
+    public void VmsProbe_DetectsHasTokenState()
+    {
+        var probeWithTokenOnRoot = new VmsProbe(
+            Url: "https://fkvms.synlabs.io/",
+            Username: false,
+            Password: false,
+            Feed: false,
+            Awb: false,
+            FeedFilled: false,
+            LoginVisible: false,
+            ConnectVisible: false,
+            RecordVisible: false,
+            HasToken: true);
+
+        Assert.True(probeWithTokenOnRoot.HasToken);
+        Assert.False(probeWithTokenOnRoot.OnLogin);
+        Assert.False(probeWithTokenOnRoot.OnOperatorVms);
+
+        var probeExpiredToLogin = new VmsProbe(
+            Url: "https://fkvms.synlabs.io/#/login",
+            Username: true,
+            Password: true,
+            Feed: false,
+            Awb: false,
+            FeedFilled: false,
+            LoginVisible: true,
+            ConnectVisible: false,
+            RecordVisible: false,
+            HasToken: false);
+
+        Assert.False(probeExpiredToLogin.HasToken);
+        Assert.True(probeExpiredToLogin.OnLogin);
+    }
+
+    [Fact]
+    public void ProductCardModel_VerificationProperties_FormatProperly()
+    {
+        var itemSingle = new Youthnic.Desktop.Models.LookupItem(
+            Sku: "SKD178-Shukriya-Wine_XL",
+            SkuName: "Ethnic Kurta Set",
+            Quantity: 1,
+            Seller: "ETHNIC JUNCTION - Flipkart",
+            ImageUrls: new[] { "https://example.com/img.jpg" });
+
+        var singleModel = Youthnic.Desktop.Models.ProductCardModel.FromLookupItem(itemSingle, 0);
+        Assert.False(singleModel.IsMultiQuantity);
+        Assert.Equal("x1 UNIT", singleModel.QuantityBadgeText);
+        Assert.Equal("XL", singleModel.FormattedSize);
+        Assert.Equal("ETHNIC JUNCTION - Flipkart", singleModel.CleanSeller);
+
+        var itemMulti = new Youthnic.Desktop.Models.LookupItem(
+            Sku: "KURTI-BLUE-42",
+            SkuName: "Blue Kurti",
+            Quantity: 3,
+            Seller: null,
+            ImageUrls: Array.Empty<string>());
+
+        var multiModel = Youthnic.Desktop.Models.ProductCardModel.FromLookupItem(itemMulti, 1);
+        Assert.True(multiModel.IsMultiQuantity);
+        Assert.Equal("x3 UNITS", multiModel.QuantityBadgeText);
+        Assert.Equal("42", multiModel.FormattedSize);
+        Assert.Equal("Youthnic", multiModel.CleanSeller);
+    }
 }

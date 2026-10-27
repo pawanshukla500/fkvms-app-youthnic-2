@@ -15,33 +15,57 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Top Header: Youthnic Brand & Marketplace Badge -->
-        <Border Grid.Row="0" Margin="0,0,0,10" Padding="8,6" Background="#F8FAFC"
-                BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="6">
+        <!-- Top Header: Youthnic Brand, Marketplace Badge, and Scanned AWB -->
+        <Border Grid.Row="0" Margin="0,0,0,10" Padding="10,8" Background="#F8FAFC"
+                BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="8">
             <Grid>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="28" Height="28" CornerRadius="6" Background="White"
-                            BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Padding="2">
-                        <Image Source="pack://application:,,,/Youthnic.Desktop;component/Assets/youthnic_logo.png" Stretch="Uniform"
-                               RenderOptions.BitmapScalingMode="HighQuality"/>
-                    </Border>
-                    <StackPanel VerticalAlignment="Center" Margin="8,0,0,0">
-                        <TextBlock Text="YOUTHNIC" FontSize="12" FontWeight="Bold"
-                                   Foreground="{StaticResource TextPrimary}"/>
-                        <TextBlock Text="Packing Station" FontSize="10" Foreground="{StaticResource TextMuted}"/>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="28" Height="28" CornerRadius="6" Background="White"
+                                BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" Padding="2">
+                            <Image Source="pack://application:,,,/Youthnic.Desktop;component/Assets/youthnic_logo.png" Stretch="Uniform"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center" Margin="8,0,0,0">
+                            <TextBlock Text="YOUTHNIC" FontSize="12" FontWeight="Bold"
+                                       Foreground="{StaticResource TextPrimary}"/>
+                            <TextBlock Text="Packing Station" FontSize="10" Foreground="{StaticResource TextMuted}"/>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
-                <StackPanel x:Name="MarketplaceBadge" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Image x:Name="MarketplaceLogo" Width="20" Height="20" Stretch="Uniform"
-                           RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,6,0"/>
-                    <TextBlock x:Name="MarketplaceText" FontSize="11" FontWeight="SemiBold"
-                               Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
-                </StackPanel>
+                    <StackPanel x:Name="MarketplaceBadge" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Image x:Name="MarketplaceLogo" Width="20" Height="20" Stretch="Uniform"
+                               RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,6,0"/>
+                        <TextBlock x:Name="MarketplaceText" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Active Scanned AWB Bar (Visible when AWB is scanned) -->
+                <Border x:Name="AwbHeaderBar" Grid.Row="1" Margin="0,8,0,0" Padding="8,5" Background="#EFF6FF"
+                        BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6" Visibility="Collapsed">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="AWB: " FontSize="11" FontWeight="Bold" Foreground="#1E40AF"/>
+                            <TextBlock x:Name="AwbHeaderText" Text="—" FontSize="12" FontWeight="Bold"
+                                       Foreground="#1D4ED8"/>
+                        </StackPanel>
+                        <Border x:Name="SellerHeaderBadge" HorizontalAlignment="Right" Background="White"
+                                BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                            <TextBlock x:Name="SellerHeaderText" Text="Youthnic" FontSize="10" FontWeight="SemiBold"
+                                       Foreground="#1E40AF"/>
+                        </Border>
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
 
         <!-- Main Content Area: State / Images / Cards -->
-        <Border Grid.Row="1" Background="#F4F6F9" CornerRadius="6"
+        <Border Grid.Row="1" Background="#F4F6F9" CornerRadius="8"
                 BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
                 MinHeight="260">
             <Grid>
@@ -77,12 +101,14 @@
                             Click="RetryButton_Click"/>
                 </StackPanel>
 
-                <!-- Single Item View (Image + Garment Verification Fallback) -->
+                <!-- Single Item View: Image + Floating Verification Badges Overlay -->
                 <Grid x:Name="SingleItemPanel" Visibility="Collapsed">
-                    <Image x:Name="ProductImage" Stretch="Uniform" Margin="10"
+                    <!-- Product Image -->
+                    <Image x:Name="ProductImage" Stretch="Uniform" Margin="8"
                            RenderOptions.BitmapScalingMode="HighQuality"
                            Visibility="Collapsed"/>
 
+                    <!-- Fallback placeholder when no photo is available -->
                     <Border x:Name="ImagePlaceholderCard" Visibility="Collapsed"
                             VerticalAlignment="Center" HorizontalAlignment="Center"
                             Background="#F8FAFC" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
@@ -109,9 +135,33 @@
                                        HorizontalAlignment="Center" Margin="0,5,0,0"/>
                         </StackPanel>
                     </Border>
+
+                    <!-- Top Floating Verification Badges Overlay (ALWAYS visible when item is displayed!) -->
+                    <Grid VerticalAlignment="Top" Margin="12,10" x:Name="SingleItemBadgesOverlay">
+                        <!-- Prominent Size Badge on Left -->
+                        <Border x:Name="OverlaySizeBadge" Background="#0284C7" CornerRadius="6"
+                                Padding="12,6" HorizontalAlignment="Left" VerticalAlignment="Top">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="8" ShadowDepth="2" Direction="270" Opacity="0.35" Color="#000000"/>
+                            </Border.Effect>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="SIZE: " FontSize="12" FontWeight="SemiBold" Foreground="#E0F2FE" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="OverlaySizeText" Text="XL" FontSize="15" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Prominent Quantity Badge on Right -->
+                        <Border x:Name="OverlayQtyBadge" Background="#16A34A" CornerRadius="6"
+                                Padding="12,6" HorizontalAlignment="Right" VerticalAlignment="Top">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="8" ShadowDepth="2" Direction="270" Opacity="0.35" Color="#000000"/>
+                            </Border.Effect>
+                            <TextBlock x:Name="OverlayQtyText" Text="✓ 1 UNIT" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
                 </Grid>
 
-                <!-- Multi-Item View: Cards with photos and x{Qty} badges (Image 3) -->
+                <!-- Multi-Item View: Cards with photos and x{Qty} badges -->
                 <Grid x:Name="MultiItemsPanel" Visibility="Collapsed" Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -174,12 +224,19 @@
                                                            MaxHeight="36" TextTrimming="CharacterEllipsis"/>
                                                 <TextBlock Text="{Binding Sku}" FontSize="11" Foreground="{StaticResource TextMuted}"
                                                            TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
-                                                <Border Background="#F8FAFC" BorderBrush="{StaticResource BorderSoft}"
-                                                        BorderThickness="1" CornerRadius="4" Padding="6,2"
-                                                        HorizontalAlignment="Left" Margin="0,4,0,0">
-                                                    <TextBlock Text="{Binding Size, StringFormat='Size: {0}'}" FontSize="10"
-                                                               FontWeight="SemiBold" Foreground="#0284C7"/>
-                                                </Border>
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                    <Border Background="#EFF6FF" BorderBrush="#BFDBFE"
+                                                            BorderThickness="1" CornerRadius="4" Padding="6,2"
+                                                            Margin="0,0,6,0">
+                                                        <TextBlock Text="{Binding Size, StringFormat='Size: {0}'}" FontSize="10"
+                                                                   FontWeight="Bold" Foreground="#0284C7"/>
+                                                    </Border>
+                                                    <Border Background="#F0FDF4" BorderBrush="#BBF7D0"
+                                                            BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                        <TextBlock Text="{Binding Quantity, StringFormat='Qty: {0}'}" FontSize="10"
+                                                                   FontWeight="Bold" Foreground="#15803D"/>
+                                                    </Border>
+                                                </StackPanel>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -214,16 +271,62 @@
             </Grid>
         </Border>
 
-        <!-- Single Item Identity (Shown only for single-item scans) -->
-        <StackPanel x:Name="SingleItemDetails" Grid.Row="2" Margin="0,12,0,0">
-            <TextBlock x:Name="SkuNameText" FontSize="16" FontWeight="SemiBold"
-                       Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap"/>
-            <TextBlock x:Name="SkuIdText" FontSize="13" Foreground="{StaticResource TextMuted}"
-                       TextWrapping="Wrap" Margin="0,3,0,0"/>
-        </StackPanel>
+        <!-- Single Item Verification Details (Shown for single-item scans) -->
+        <Border x:Name="SingleItemDetails" Grid.Row="2" Margin="0,10,0,0" Padding="10,8"
+                Background="#F8FAFC" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="8">
+            <StackPanel>
+                <!-- SKU Badge / Code -->
+                <Border Background="White" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
+                        CornerRadius="4" Padding="8,4" HorizontalAlignment="Stretch">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="SKU: " FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+                        <TextBlock x:Name="SkuCodeText" FontSize="12" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Product Title -->
+                <TextBlock x:Name="SkuNameText" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap" Margin="0,6,0,0"
+                           MaxHeight="36" TextTrimming="CharacterEllipsis"/>
+
+                <!-- Verification Checklist Summary Box -->
+                <Border Margin="0,8,0,0" Padding="8,6" Background="#FFFFFF" BorderBrush="#E2E8F0"
+                        BorderThickness="1" CornerRadius="6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="1.2*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Size Check -->
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="SIZE" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+                            <TextBlock x:Name="VerifySizeText" Text="XL" FontSize="13" FontWeight="Bold"
+                                       Foreground="#0284C7" Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <!-- Quantity Check -->
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="QUANTITY" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+                            <TextBlock x:Name="VerifyQtyText" Text="1 Unit" FontSize="13" FontWeight="Bold"
+                                       Foreground="#16A34A" Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <!-- Seller / Polybag Check -->
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="BRAND / POLYBAG" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+                            <TextBlock x:Name="VerifySellerText" Text="ETHNIC JUNCTION" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimary}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
 
         <!-- Status line -->
         <TextBlock x:Name="StatusText" Grid.Row="3" FontSize="11" Foreground="{StaticResource TextMuted}"
-                   Margin="0,10,0,0" TextWrapping="Wrap"/>
+                   Margin="0,8,0,0" TextWrapping="Wrap"/>
     </Grid>
 </UserControl>

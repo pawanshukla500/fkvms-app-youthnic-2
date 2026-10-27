@@ -157,4 +157,101 @@
       setTimeout(ensureScanBarFocus, 100);
     }
   });
+
+  // ---- Session Guardian & Keep-Alive ---------------------------------------
+  // Automatically keeps the VMS JWT token fresh, protects credentials against
+  // sudden network/timeout evictions, and ensures shifts run without logouts.
+  (function initSessionGuardian() {
+    var BACKUP_KEY = '__youthnic_fkuser_backup';
+
+    // 1. Preserve and protect authentication tokens
+    function backupToken() {
+      try {
+        var current = localStorage.getItem('fkuser');
+        if (current && current.indexOf('token') !== -1) {
+          localStorage.setItem(BACKUP_KEY, current);
+        } else {
+          // If fkuser was cleared unexpectedly, restore from backup
+          var backup = localStorage.getItem(BACKUP_KEY);
+          if (backup && (!current || current === '{}')) {
+            localStorage.setItem('fkuser', backup);
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 2. Wrap localStorage.clear to protect backup from unexpected evictions
+    try {
+      if (!window.__youthnicClearWrapped && window.localStorage) {
+        window.__youthnicClearWrapped = true;
+        var originalClear = window.localStorage.clear.bind(window.localStorage);
+        window.localStorage.clear = function () {
+          var saved = window.localStorage.getItem(BACKUP_KEY) || window.localStorage.getItem('fkuser');
+          originalClear();
+          if (saved) {
+            try { window.localStorage.setItem(BACKUP_KEY, saved); } catch (e) {}
+          }
+        };
+      }
+    } catch (e) {}
+
+    // Backup immediately and on storage changes
+    backupToken();
+    window.addEventListener('storage', backupToken);
+
+    // 3. Proactive Keep-Alive: Ping session every 2.5 minutes
+    function performKeepAlive() {
+      backupToken();
+      try {
+        var userStr = localStorage.getItem('fkuser') || localStorage.getItem(BACKUP_KEY);
+        if (!userStr) return;
+        var u = JSON.parse(userStr);
+        if (!u || !u.token) return;
+
+        // Ping lightweight authenticated user endpoint
+        fetch('/api/user/menu', {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + u.token,
+            'Content-Type': 'application/json'
+          }
+        }).then(function (res) {
+          if (res.status === 401 && u.refreshToken) {
+            // Proactively refresh JWT before Axios interceptor aborts
+            return fetch('/auth/refresh', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken: u.refreshToken })
+            }).then(function (r) {
+              if (r.ok) return r.json();
+              return null;
+            }).then(function (data) {
+              if (data && data.token) {
+                localStorage.setItem('fkuser', JSON.stringify(data));
+                localStorage.setItem(BACKUP_KEY, JSON.stringify(data));
+              }
+            });
+          }
+        }).catch(function () {});
+      } catch (e) {}
+    }
+
+    // Run keep-alive every 150 seconds (2.5 minutes)
+    setInterval(performKeepAlive, 150000);
+    // Initial keepalive after 10 seconds
+    setTimeout(performKeepAlive, 10000);
+
+    // 4. Ensure authenticated operators stay on operator/vms
+    setInterval(function () {
+      try {
+        var userStr = localStorage.getItem('fkuser') || localStorage.getItem(BACKUP_KEY);
+        if (userStr && userStr.indexOf('token') !== -1) {
+          var hash = location.hash || '';
+          if (hash === '' || hash === '#/' || hash === '#/home') {
+            location.hash = '#/operator/vms';
+          }
+        }
+      } catch (e) {}
+    }, 2000);
+  })();
 })();

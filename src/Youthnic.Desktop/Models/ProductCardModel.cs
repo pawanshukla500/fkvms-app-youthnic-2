@@ -47,13 +47,17 @@ public sealed class ProductCardModel : INotifyPropertyChanged
     }
 
     public bool IsLoadingImage => !_hasImage;
+    public bool IsMultiQuantity => Quantity > 1;
+    public string QuantityBadgeText => Quantity > 1 ? $"x{Quantity} UNITS" : "x1 UNIT";
+    public string FormattedSize => !string.IsNullOrWhiteSpace(Size) ? Size : "FREE";
+    public string CleanSeller => !string.IsNullOrWhiteSpace(Seller) ? Seller : "Youthnic";
 
     public static ProductCardModel FromLookupItem(LookupItem item, int index)
     {
         var rawSku = (item.Sku ?? string.Empty).Trim();
         var rawName = (item.SkuName ?? string.Empty).Trim();
         var decodedName = WebUtility.HtmlDecode(rawName);
-        var size = ExtractSize(rawSku);
+        var size = ExtractSize(rawSku) ?? ExtractSizeFromName(decodedName);
 
         return new ProductCardModel
         {
@@ -86,9 +90,28 @@ public sealed class ProductCardModel : INotifyPropertyChanged
         return null;
     }
 
+    public static string? ExtractSizeFromName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        var s = name.Trim();
+        // Common title formats: "... (Size: XL)" or "... Size - M" or "... Size : 38"
+        var idx = s.LastIndexOf("Size", StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0)
+        {
+            var remainder = s[(idx + 4)..].Trim().TrimStart(':', '-', '(', ' ').TrimEnd(')', ' ');
+            var tokens = remainder.Split(new[] { ' ', ',', ')' }, StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length > 0 && IsKnownSize(tokens[0].ToUpperInvariant()))
+            {
+                return tokens[0].ToUpperInvariant();
+            }
+        }
+        return null;
+    }
+
     public static bool IsKnownSize(string s) => s switch
     {
-        "XS" or "S" or "M" or "L" or "XL" or "XXL" or "2XL" or "3XL" or "4XL" or "5XL" or "6XL" or "FREE" or "FS" => true,
+        "XS" or "S" or "M" or "L" or "XL" or "XXL" or "2XL" or "3XL" or "4XL" or "5XL" or "6XL" or "FREE" or "FS" or "FREESIZE" or "FREE-SIZE" or "ONESIZE" => true,
+        "26" or "28" or "30" or "32" or "34" or "36" or "38" or "40" or "42" or "44" or "46" or "48" or "50" => true,
         _ => false
     };
 

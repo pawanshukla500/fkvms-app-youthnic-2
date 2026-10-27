@@ -157,7 +157,10 @@ public class DeskOptionsAndDefaultsTests
         var reconciled = SecureConfigStore.EnsureDefaults(incomplete);
         Assert.True(reconciled.SetupCompleted);
         Assert.False(string.IsNullOrWhiteSpace(reconciled.DeviceId));
-        Assert.Equal("Packing Desk", reconciled.DeskName);
+        var expectedDeskName = !string.IsNullOrWhiteSpace(InstallDefaults.Load().DeskName)
+            ? InstallDefaults.Load().DeskName!
+            : "Packing Desk";
+        Assert.Equal(expectedDeskName, reconciled.DeskName);
         Assert.Equal(DeskOptions.DefaultLookupApiUrl, reconciled.LookupApiUrl);
         Assert.Equal(DeskOptions.DefaultLookupApiKey, reconciled.LookupApiKey);
 

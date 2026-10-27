@@ -24,7 +24,8 @@ public sealed record VmsProbe(
     bool LoginVisible,
     bool ConnectVisible,
     bool RecordVisible,
-    bool LoginLoading = false)
+    bool LoginLoading = false,
+    bool HasToken = false)
 {
     public bool OnLogin => Url.Contains("#/login", StringComparison.OrdinalIgnoreCase)
         || Url.EndsWith("/login", StringComparison.OrdinalIgnoreCase)
@@ -211,7 +212,22 @@ public sealed class VmsAutomationService : IDisposable
             {
                 SetState(AutomationState.ConnectingFeed);
             }
+            return;
         }
+
+        // If already authenticated with valid token, navigate directly to operator/vms
+        if (probe.HasToken)
+        {
+            AppLog.Info($"VmsAutomation: active session detected for {_marketplace}, opening packing desk");
+            await EvalOnUiAsync("window.location.hash = '#/operator/vms';").ConfigureAwait(false);
+            SetState(AutomationState.ConnectingFeed);
+            return;
+        }
+
+        // If not authenticated and not on login, route to login page
+        AppLog.Info($"VmsAutomation: no active session for {_marketplace}, opening login");
+        await EvalOnUiAsync("window.location.hash = '#/login';").ConfigureAwait(false);
+        SetState(AutomationState.LoggingIn);
     }
 
     private async Task HandleLoggingInAsync(VmsProbe probe, CancellationToken ct)
@@ -228,6 +244,11 @@ public sealed class VmsAutomationService : IDisposable
                 SetState((probe.Awb || probe.RecordVisible) ? AutomationState.Packing : AutomationState.ConnectingFeed);
                 if (State == AutomationState.Packing) await EnterPackingAsync().ConfigureAwait(false);
             }
+            else if (probe.HasToken)
+            {
+                await EvalOnUiAsync("window.location.hash = '#/operator/vms';").ConfigureAwait(false);
+                SetState(AutomationState.ConnectingFeed);
+            }
             else
             {
                 SetState(AutomationState.Starting);
@@ -238,7 +259,7 @@ public sealed class VmsAutomationService : IDisposable
         if (_loginSubmitted)
         {
             _loginSubmittedTicks++;
-            if (probe.LoginLoading || _loginSubmittedTicks < 12)
+            if (probe.LoginLoading || _loginSubmittedTicks < 8)
             {
                 return;
             }
@@ -247,26 +268,11 @@ public sealed class VmsAutomationService : IDisposable
 
         if (probe.Username && probe.Password)
         {
-            var userStatus = await EvalOnUiAsync(VmsScripts.FillByName("Username", config.Username)).ConfigureAwait(false);
-            var uStatus = userStatus?.Trim('"');
-            if (string.Equals(uStatus, "typing", StringComparison.OrdinalIgnoreCase))
-            {
-                RaiseStatus("Entering username…");
-                await Task.Delay(LoginFillToClickDelayMs, ct).ConfigureAwait(false);
-                return;
-            }
-
-            var passStatus = await EvalOnUiAsync(VmsScripts.FillByName("Password", config.Password)).ConfigureAwait(false);
-            var pStatus = passStatus?.Trim('"');
-            if (string.Equals(pStatus, "typing", StringComparison.OrdinalIgnoreCase))
-            {
-                RaiseStatus("Entering password…");
-                await Task.Delay(LoginFillToClickDelayMs, ct).ConfigureAwait(false);
-                return;
-            }
+            await EvalOnUiAsync(VmsScripts.FillByName("Username", config.Username)).ConfigureAwait(false);
+            await EvalOnUiAsync(VmsScripts.FillByName("Password", config.Password)).ConfigureAwait(false);
 
             RaiseStatus("Logging in to VMS…");
-            await Task.Delay(LoginFillToClickDelayMs, ct).ConfigureAwait(false);
+            await Task.Delay(250, ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
 
             var click = await EvalOnUiAsync(VmsScripts.ClickByName("Login")).ConfigureAwait(false);
@@ -300,19 +306,12 @@ public sealed class VmsAutomationService : IDisposable
 
         if (probe.Feed)
         {
-            var fillStatus = await EvalOnUiAsync(VmsScripts.FillByPlaceholder("Feed", config.FeedId)).ConfigureAwait(false);
-            var statusStr = fillStatus?.Trim('"');
-            if (string.Equals(statusStr, "typing", StringComparison.OrdinalIgnoreCase))
-            {
-                RaiseStatus($"Entering feed ID {config.FeedId}…");
-                await Task.Delay(FeedFillToClickDelayMs, ct).ConfigureAwait(false);
-                return;
-            }
+            await EvalOnUiAsync(VmsScripts.FillByPlaceholder("Feed", config.FeedId)).ConfigureAwait(false);
 
             if (!_connectClicked)
             {
                 RaiseStatus("Connecting camera feed…");
-                await Task.Delay(FeedFillToClickDelayMs, ct).ConfigureAwait(false);
+                await Task.Delay(250, ct).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
 
                 var click = await EvalOnUiAsync(VmsScripts.ClickByName("Connect")).ConfigureAwait(false);
@@ -334,12 +333,18 @@ public sealed class VmsAutomationService : IDisposable
             return;
         }
 
+        if (probe.HasToken && !probe.OnOperatorVms)
+        {
+            await EvalOnUiAsync("window.location.hash = '#/operator/vms';").ConfigureAwait(false);
+            return;
+        }
+
         TrackMissingDom("Feed connect screen not detected yet");
     }
 
     private async Task HandlePackingAsync(VmsProbe probe)
     {
-        if (probe.OnLogin)
+        if (probe.OnLogin || (!probe.HasToken && probe.Username && probe.Password))
         {
             AppLog.Info("VmsAutomation: session expired during packing, auto-relogging for extended shift");
             _missingDomTicks = 0;
@@ -371,6 +376,13 @@ public sealed class VmsAutomationService : IDisposable
             return;
         }
 
+        if (probe.HasToken && !probe.OnOperatorVms)
+        {
+            AppLog.Info("VmsAutomation: stray navigation detected during packing, returning to operator VMS");
+            await EvalOnUiAsync("window.location.hash = '#/operator/vms';").ConfigureAwait(false);
+            return;
+        }
+
         TrackMissingDom("VMS packing screen lost (camera/feed disconnected or page changed)");
         await Task.CompletedTask;
     }
@@ -378,10 +390,16 @@ public sealed class VmsAutomationService : IDisposable
     private void TrackMissingDom(string message)
     {
         _missingDomTicks++;
+        if (_missingDomTicks >= 10 && _missingDomTicks % 10 == 0)
+        {
+            // Auto-recovery attempt: re-assert hash anchor
+            _ = EvalOnUiAsync("if (window.location.hash !== '#/operator/vms' && (localStorage.getItem('fkuser') || localStorage.getItem('__youthnic_fkuser_backup'))) { window.location.hash = '#/operator/vms'; }");
+        }
+
         if (_missingDomTicks < MissingDomThreshold || _disconnectReported) return;
         _disconnectReported = true;
         AppLog.Error("VmsAutomation: " + message);
-        RaiseStatus(message + " — use Restart Session to reconnect. Recording is left untouched.");
+        RaiseStatus(message + " — auto-reconnecting… (use Restart Session if stuck)");
     }
 
     private async Task EnterPackingAsync()

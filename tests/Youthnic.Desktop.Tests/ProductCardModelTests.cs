@@ -14,12 +14,26 @@ public class ProductCardModelTests
     [InlineData("EJ-Dress-Teal_XXL", "XXL")]
     [InlineData("KURTI-RED-FREE", "FREE")]
     [InlineData("KURTI-RED-FS", "FS")]
+    [InlineData("KURTI-YELLOW_38", "38")]
+    [InlineData("KURTI-BLUE-42", "42")]
+    [InlineData("KURTI-GREEN_FREESIZE", "FREESIZE")]
     [InlineData("PLAIN-SKU-NO-SIZE", null)]
     [InlineData("", null)]
     [InlineData(null, null)]
     public void ExtractSize_ParsesKnownSizeSuffixes(string? sku, string? expectedSize)
     {
         var size = ProductCardModel.ExtractSize(sku!);
+        Assert.Equal(expectedSize, size);
+    }
+
+    [Theory]
+    [InlineData("Women's Cotton Kurti (Size: XL)", "XL")]
+    [InlineData("Embroidered Anarkali Kurta - Size - 38", "38")]
+    [InlineData("Silk Blend Kurti Size: Free", "FREE")]
+    [InlineData("Regular T-Shirt Without Mention", null)]
+    public void ExtractSizeFromName_ParsesSizeInTitle(string? name, string? expectedSize)
+    {
+        var size = ProductCardModel.ExtractSizeFromName(name);
         Assert.Equal(expectedSize, size);
     }
 

@@ -41,14 +41,18 @@ public partial class SkuPanel : UserControl
         }
     }
 
+    private static readonly System.Windows.Media.SolidColorBrush SuccessGreenBrush = new(System.Windows.Media.Color.FromRgb(22, 163, 74));
+    private static readonly System.Windows.Media.SolidColorBrush WarningRedBrush = new(System.Windows.Media.Color.FromRgb(220, 38, 38));
+
     public void ShowIdle()
     {
         DismissAllPopups();
         ProductCards.Clear();
         SetState(IdlePanel);
-        SkuNameText.Text = string.Empty;
-        SkuIdText.Text = string.Empty;
+        AwbHeaderBar.Visibility = Visibility.Collapsed;
         SingleItemDetails.Visibility = Visibility.Collapsed;
+        SkuCodeText.Text = string.Empty;
+        SkuNameText.Text = string.Empty;
         StatusText.Text = "Scan an AWB in the VMS to see the product here.";
     }
 
@@ -60,6 +64,9 @@ public partial class SkuPanel : UserControl
         ProductCards.Clear();
         SetState(LoadingPanel);
         LoadingText.Text = $"Looking up {awb}…";
+        AwbHeaderBar.Visibility = Visibility.Visible;
+        AwbHeaderText.Text = awb;
+        SellerHeaderBadge.Visibility = Visibility.Collapsed;
         SingleItemDetails.Visibility = Visibility.Collapsed;
         StatusText.Text = string.Empty;
     }
@@ -123,9 +130,15 @@ public partial class SkuPanel : UserControl
         var totalUnits = result.Items.Sum(i => i.Quantity);
         var isMulti = result.Items.Count > 1 || totalUnits > 1;
 
+        AwbHeaderBar.Visibility = Visibility.Visible;
+        AwbHeaderText.Text = result.Awb;
+
         if (isMulti)
         {
             MultiItemBannerText.Text = $"MULTI-ITEM: {totalUnits} units · {result.Items.Count} different SKUs";
+            SellerHeaderText.Text = $"{result.Items.Count} Items ({totalUnits} Units)";
+            SellerHeaderBadge.Visibility = Visibility.Visible;
+
             SingleItemPanel.Visibility = Visibility.Collapsed;
             SingleItemDetails.Visibility = Visibility.Collapsed;
             MultiItemsPanel.Visibility = Visibility.Visible;
@@ -134,25 +147,38 @@ public partial class SkuPanel : UserControl
         else
         {
             var main = ProductCards[0];
-            SkuNameText.Text = main.SkuName;
-            SkuIdText.Text = $"SKU {main.Sku}" +
-                             (main.Quantity > 1 ? $"  ·  Qty {main.Quantity}" : string.Empty) +
-                             (string.IsNullOrWhiteSpace(main.Seller) ? string.Empty : $"  ·  {main.Seller}");
 
-            if (!string.IsNullOrWhiteSpace(main.Size))
+            // 1. Header seller badge
+            SellerHeaderText.Text = main.CleanSeller;
+            SellerHeaderBadge.Visibility = Visibility.Visible;
+
+            // 2. Verification Badges Overlay (Floating on top of image / placeholder)
+            OverlaySizeText.Text = main.FormattedSize;
+            if (main.Quantity > 1)
             {
-                PlaceholderSizeText.Text = $"SIZE: {main.Size}";
-                PlaceholderSizeBadge.Visibility = Visibility.Visible;
+                OverlayQtyText.Text = $"⚠️ {main.Quantity} UNITS - PACK ALL!";
+                OverlayQtyBadge.Background = WarningRedBrush;
             }
             else
             {
-                PlaceholderSizeBadge.Visibility = Visibility.Collapsed;
+                OverlayQtyText.Text = "✓ 1 UNIT";
+                OverlayQtyBadge.Background = SuccessGreenBrush;
             }
 
+            // 3. Fallback Card
+            PlaceholderSizeText.Text = $"SIZE: {main.FormattedSize}";
             PlaceholderDesignText.Text = main.SkuName;
             ProductImage.Source = null;
             ProductImage.Visibility = Visibility.Collapsed;
             ImagePlaceholderCard.Visibility = Visibility.Visible;
+
+            // 4. Verification Details Section below the image
+            SkuCodeText.Text = main.Sku;
+            SkuNameText.Text = main.SkuName;
+            VerifySizeText.Text = main.FormattedSize;
+            VerifyQtyText.Text = main.Quantity > 1 ? $"{main.Quantity} Units (MULTI-QTY!)" : "1 Unit";
+            VerifyQtyText.Foreground = main.Quantity > 1 ? WarningRedBrush : SuccessGreenBrush;
+            VerifySellerText.Text = main.CleanSeller;
 
             MultiItemsPanel.Visibility = Visibility.Collapsed;
             SingleItemPanel.Visibility = Visibility.Visible;
@@ -233,8 +259,8 @@ public partial class SkuPanel : UserControl
     private void ShowMessage(string glyph, string title, string hint, bool showRetry)
     {
         ProductCards.Clear();
+        SkuCodeText.Text = string.Empty;
         SkuNameText.Text = string.Empty;
-        SkuIdText.Text = string.Empty;
         SingleItemDetails.Visibility = Visibility.Collapsed;
         ProductImage.Source = null;
         ProductImage.Visibility = Visibility.Collapsed;

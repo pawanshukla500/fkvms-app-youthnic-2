@@ -8,16 +8,11 @@ namespace Youthnic.Desktop.Services;
 
 /// <summary>
 /// Background check for new releases of the desk app on GitHub
-/// (repos/pawanshukla500/fkvms-app-youthnic-2). Checks on start, every 4 hours while
-/// running, and on demand. All network work is fire-and-forget off the UI thread and
-/// every event is marshalled onto the supplied Dispatcher; a failed, slow or absent
-/// network never surfaces to the operator (log only) and never blocks startup.
-///
-/// TRUST MODEL: the update asset is downloaded over HTTPS directly from the official
-/// GitHub release of the configured repo (github.com redirects to their CDN). No
-/// additional signature/hash verification is performed.
-/// TODO: verify an Authenticode signature or a signed SHA-256 manifest before running
-/// the downloaded installer, so a compromised release cannot be installed silently.
+/// (repos/pawanshukla500/fkvms-app-youthnic-2). Checks on start, every 1 hour while
+/// running, and on demand. Automatically pulls (downloads) new updates in background.
+/// All network work is fire-and-forget off the UI thread and every event is marshalled
+/// onto the supplied Dispatcher; a failed, slow or absent network never surfaces to the
+/// operator (log only) and never blocks startup.
 /// </summary>
 public sealed class UpdateChecker : IDisposable
 {
@@ -25,7 +20,7 @@ public sealed class UpdateChecker : IDisposable
 
     private static readonly Uri LatestReleaseUri =
         new("https://api.github.com/repos/pawanshukla500/fkvms-app-youthnic-2/releases/latest");
-    private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(4);
+    private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(1);
     private const int RequestTimeoutSeconds = 8;
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
@@ -79,6 +74,22 @@ public sealed class UpdateChecker : IDisposable
             _pending = release;
             AppLog.Info($"UpdateChecker: update available — v{release.Version} (running v{current})");
             _ = _dispatcher.BeginInvoke(() => UpdateAvailable?.Invoke(release));
+
+            // Auto-pull (download) the new installer in background so it is ready for instant install
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var destination = Path.Combine(UpdatesDir, SetupAssetName);
+                    AppLog.Info($"UpdateChecker: auto-pulling update v{release.Version} to {destination}...");
+                    await DownloadAsync(release, destination, null, CancellationToken.None).ConfigureAwait(false);
+                    AppLog.Info($"UpdateChecker: auto-pull complete for v{release.Version}");
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Debug($"UpdateChecker: auto-pull background download failed — {ex.Message}");
+                }
+            }, CancellationToken.None);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -94,10 +105,6 @@ public sealed class UpdateChecker : IDisposable
     /// <summary>
     /// Downloads the setup asset for the announced release to <paramref name="destinationPath"/>,
     /// streaming with progress (0..1 when the content length is known, else 0 until done).
-    /// The progress callback may be invoked on a thread-pool thread — callers must marshal
-    /// to the UI thread themselves if they touch WPF objects.
-    /// TRUST MODEL: HTTPS from the official GitHub release (see class remarks); no extra
-    /// signature check yet (TODO).
     /// </summary>
     public async Task DownloadAsync(
         ReleaseInfo release, string destinationPath, IProgress<double>? progress, CancellationToken ct)

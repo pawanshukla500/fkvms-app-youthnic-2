@@ -65,27 +65,24 @@ public static class LookupQueryBuilder
                         !string.IsNullOrWhiteSpace(m.ImageSkuJoinColumn) &&
                         !string.IsNullOrWhiteSpace(m.ColImageUrl);
 
-        var sb = new StringBuilder(640);
+        var skuExpr = "oi." + Quoted(m.OrderItemsSkuColumn);
+
+        var sb = new StringBuilder(1024);
         sb.Append("BEGIN READ ONLY; SELECT ");
-        sb.Append("oi.").Append(Quoted(m.OrderItemsSkuColumn)).Append(" AS sku, ");
+        sb.Append(skuExpr).Append(" AS sku, ");
         sb.Append(hasSkuMap ? "m." + Quoted(m.ColSkuName) : "NULL").Append(" AS sku_name, ");
         sb.Append(hasImages ? "im." + Quoted(m.ColImageUrl) : "NULL").Append(" AS image_url, ");
         sb.Append(string.IsNullOrWhiteSpace(m.ColSeller) ? "NULL" : "o." + Quoted(m.ColSeller)).Append(" AS seller ");
         sb.Append("FROM ").Append(orders).Append(" o JOIN ").Append(items)
           .Append(" oi ON oi.").Append(Quoted(m.OrderItemsOrderJoinColumn))
           .Append(" = o.").Append(Quoted(m.OrderItemsOrderJoinColumn));
+
         if (hasSkuMap)
-            sb.Append(" LEFT JOIN LATERAL (SELECT sm.").Append(Quoted(m.ColSkuName))
-              .Append(" FROM ").Append(TableIdent(m.SchemaOrders, m.SkuMapTable))
-              .Append(" sm WHERE (sm.").Append(Quoted(m.ColSku)).Append(" = upper(oi.").Append(Quoted(m.OrderItemsSkuColumn))
-              .Append(") OR sm.").Append(Quoted(m.ColSku)).Append(" = oi.").Append(Quoted(m.OrderItemsSkuColumn))
-              .Append(") LIMIT 1) m ON true");
+            AppendSkuMapLateralJoin(sb, m, skuExpr);
+
         if (hasImages)
-            sb.Append(" LEFT JOIN LATERAL (SELECT sim.").Append(Quoted(m.ColImageUrl))
-              .Append(" FROM ").Append(TableIdent(m.SchemaOrders, m.ImageTable))
-              .Append(" sim WHERE (sim.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = upper(oi.").Append(Quoted(m.OrderItemsSkuColumn))
-              .Append(") OR sim.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = oi.").Append(Quoted(m.OrderItemsSkuColumn))
-              .Append(") LIMIT 1) im ON true");
+            AppendImageLateralJoin(sb, m, skuExpr);
+
         sb.Append(" WHERE (o.").Append(Quoted(m.ColTracking)).Append(" = upper($1) OR upper(o.").Append(Quoted(m.ColTracking)).Append(") = upper($1))");
         usesMarketplaceParameter = !string.IsNullOrWhiteSpace(m.ColMarketplace);
         if (usesMarketplaceParameter)
@@ -111,7 +108,7 @@ public static class LookupQueryBuilder
                         !string.IsNullOrWhiteSpace(m.ImageSkuJoinColumn) &&
                         !string.IsNullOrWhiteSpace(m.ColImageUrl);
 
-        var sb = new StringBuilder(960);
+        var sb = new StringBuilder(1280);
         sb.Append("BEGIN READ ONLY; SELECT ");
         sb.Append(JsonSkuExpression).Append(" AS sku, ");
         // Newer schema versions carry title/image_url inline in the JSON element;
@@ -129,18 +126,13 @@ public static class LookupQueryBuilder
         sb.Append("COALESCE(it.item ->> 'sub_order_id', it.item ->> 'id', '') AS sub_order_id");
         sb.Append(" FROM ").Append(orders).Append(" o CROSS JOIN LATERAL jsonb_array_elements(o.")
           .Append(itemsJson).Append("::jsonb) AS it(item)");
+
         if (hasSkuMap)
-            sb.Append(" LEFT JOIN LATERAL (SELECT sm.").Append(Quoted(m.ColSkuName))
-              .Append(" FROM ").Append(TableIdent(m.SchemaOrders, m.SkuMapTable))
-              .Append(" sm WHERE (sm.").Append(Quoted(m.ColSku)).Append(" = upper(").Append(JsonSkuExpression)
-              .Append(") OR sm.").Append(Quoted(m.ColSku)).Append(" = ").Append(JsonSkuExpression)
-              .Append(") LIMIT 1) m ON true");
+            AppendSkuMapLateralJoin(sb, m, JsonSkuExpression);
+
         if (hasImages)
-            sb.Append(" LEFT JOIN LATERAL (SELECT sim.").Append(Quoted(m.ColImageUrl))
-              .Append(" FROM ").Append(TableIdent(m.SchemaOrders, m.ImageTable))
-              .Append(" sim WHERE (sim.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = upper(").Append(JsonSkuExpression)
-              .Append(") OR sim.").Append(Quoted(m.ImageSkuJoinColumn)).Append(" = ").Append(JsonSkuExpression)
-              .Append(") LIMIT 1) im ON true");
+            AppendImageLateralJoin(sb, m, JsonSkuExpression);
+
         sb.Append(" WHERE (o.").Append(Quoted(m.ColTracking)).Append(" = upper($1) OR upper(o.").Append(Quoted(m.ColTracking)).Append(") = upper($1))");
         usesMarketplaceParameter = !string.IsNullOrWhiteSpace(m.ColMarketplace);
         if (usesMarketplaceParameter)
@@ -148,6 +140,59 @@ public static class LookupQueryBuilder
         AppendSellerFilter(sb, m, includeSellerFilter, usesMarketplaceParameter, out usesSellerParameter);
         sb.Append(" LIMIT ").Append(MaxRows).Append("; COMMIT;");
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Multi-level photo match:
+    /// 1. Exact full SKU (case-insensitive)
+    /// 2. Base SKU (size suffix stripped, e.g. _XS, _S, _M, _L, _XL, _2XL, etc.)
+    /// 3. Sibling size variant of the same style/garment
+    /// </summary>
+    private static void AppendImageLateralJoin(StringBuilder sb, ForwardScanMapping m, string skuExpr)
+    {
+        var skuCol = Quoted(m.ImageSkuJoinColumn);
+        var imgCol = Quoted(m.ColImageUrl);
+        var imgTable = TableIdent(m.SchemaOrders, m.ImageTable);
+
+        sb.Append(" LEFT JOIN LATERAL (SELECT sim.").Append(imgCol)
+          .Append(" FROM ").Append(imgTable).Append(" sim")
+          .Append(" WHERE (sim.").Append(skuCol).Append(" = ").Append(skuExpr)
+          .Append(" OR upper(sim.").Append(skuCol).Append(") = upper(").Append(skuExpr).Append(")")
+          .Append(" OR sim.").Append(skuCol).Append(" = REGEXP_REPLACE(").Append(skuExpr).Append(", '_([0-9]?[A-Za-z]+|FREE ?SIZE)$', '', 'i')")
+          .Append(" OR upper(sim.").Append(skuCol).Append(") = upper(REGEXP_REPLACE(").Append(skuExpr).Append(", '_([0-9]?[A-Za-z]+|FREE ?SIZE)$', '', 'i'))")
+          .Append(" OR sim.").Append(skuCol).Append(" ILIKE REGEXP_REPLACE(").Append(skuExpr).Append(", '_([0-9]?[A-Za-z]+|FREE ?SIZE)$', '', 'i') || '_%'")
+          .Append(") AND sim.").Append(imgCol).Append(" IS NOT NULL AND sim.").Append(imgCol).Append(" != ''")
+          .Append(" ORDER BY CASE")
+          .Append(" WHEN sim.").Append(skuCol).Append(" = ").Append(skuExpr)
+          .Append(" OR upper(sim.").Append(skuCol).Append(") = upper(").Append(skuExpr).Append(") THEN 1")
+          .Append(" WHEN sim.").Append(skuCol).Append(" = REGEXP_REPLACE(").Append(skuExpr).Append(", '_([0-9]?[A-Za-z]+|FREE ?SIZE)$', '', 'i') THEN 2")
+          .Append(" ELSE 3 END LIMIT 1) im ON true");
+    }
+
+    /// <summary>
+    /// Multi-level title/SKU-name match:
+    /// 1. Exact full SKU (case-insensitive)
+    /// 2. Base SKU (size suffix stripped)
+    /// 3. Sibling size variant
+    /// </summary>
+    private static void AppendSkuMapLateralJoin(StringBuilder sb, ForwardScanMapping m, string skuExpr)
+    {
+        var skuCol = Quoted(m.ColSku);
+        var nameCol = Quoted(m.ColSkuName);
+        var mapTable = TableIdent(m.SchemaOrders, m.SkuMapTable);
+
+        sb.Append(" LEFT JOIN LATERAL (SELECT sm.").Append(nameCol)
+          .Append(" FROM ").Append(mapTable).Append(" sm")
+          .Append(" WHERE (sm.").Append(skuCol).Append(" = upper(").Append(skuExpr).Append(")")
+          .Append(" OR sm.").Append(skuCol).Append(" = ").Append(skuExpr)
+          .Append(" OR sm.").Append(skuCol).Append(" = REGEXP_REPLACE(").Append(skuExpr).Append(", '_([0-9]?[A-Za-z]+|FREE ?SIZE)$', '', 'i')")
+          .Append(" OR upper(sm.").Append(skuCol).Append(") = upper(REGEXP_REPLACE(").Append(skuExpr).Append(", '_([0-9]?[A-Za-z]+|FREE ?SIZE)$', '', 'i'))")
+          .Append(" OR sm.").Append(skuCol).Append(" ILIKE REGEXP_REPLACE(").Append(skuExpr).Append(", '_([0-9]?[A-Za-z]+|FREE ?SIZE)$', '', 'i') || '_%'")
+          .Append(") ORDER BY CASE")
+          .Append(" WHEN sm.").Append(skuCol).Append(" = ").Append(skuExpr)
+          .Append(" OR upper(sm.").Append(skuCol).Append(") = upper(").Append(skuExpr).Append(") THEN 1")
+          .Append(" WHEN sm.").Append(skuCol).Append(" = REGEXP_REPLACE(").Append(skuExpr).Append(", '_([0-9]?[A-Za-z]+|FREE ?SIZE)$', '', 'i') THEN 2")
+          .Append(" ELSE 3 END LIMIT 1) m ON true");
     }
 
     /// <summary>

@@ -176,7 +176,7 @@ public sealed class VmsAutomationService : IDisposable
 
         if (probe.IsUnauthorized)
         {
-            AppLog.Warn($"VmsAutomation: 'Unauthorized Access' (403) detected on {_marketplace} VMS. Purging invalid session and routing to login.");
+            AppLog.Info($"VmsAutomation: 'Unauthorized Access' (403) detected on {_marketplace} VMS. Purging invalid session and routing to login.");
             RaiseStatus("Session expired / unauthorized — auto-relogging…");
             await EvalOnUiAsync("""
                 try {

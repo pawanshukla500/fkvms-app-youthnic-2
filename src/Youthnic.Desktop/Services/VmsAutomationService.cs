@@ -25,7 +25,8 @@ public sealed record VmsProbe(
     bool ConnectVisible,
     bool RecordVisible,
     bool LoginLoading = false,
-    bool HasToken = false)
+    bool HasToken = false,
+    bool IsUnauthorized = false)
 {
     public bool OnLogin => Url.Contains("#/login", StringComparison.OrdinalIgnoreCase)
         || Url.EndsWith("/login", StringComparison.OrdinalIgnoreCase)
@@ -172,6 +173,25 @@ public sealed class VmsAutomationService : IDisposable
         if (probe is null || string.IsNullOrWhiteSpace(probe.Url)) return;
 
         ct.ThrowIfCancellationRequested();
+
+        if (probe.IsUnauthorized)
+        {
+            AppLog.Warn($"VmsAutomation: 'Unauthorized Access' (403) detected on {_marketplace} VMS. Purging invalid session and routing to login.");
+            RaiseStatus("Session expired / unauthorized — auto-relogging…");
+            await EvalOnUiAsync("""
+                try {
+                    localStorage.removeItem('fkuser');
+                    localStorage.removeItem('__youthnic_fkuser_backup');
+                    sessionStorage.clear();
+                } catch (e) {}
+                window.location.hash = '#/login';
+            """).ConfigureAwait(false);
+            _connectClicked = false;
+            _loginSubmitted = false;
+            _loginSubmittedTicks = 0;
+            SetState(AutomationState.LoggingIn);
+            return;
+        }
 
         switch (State)
         {
@@ -393,7 +413,18 @@ public sealed class VmsAutomationService : IDisposable
         if (_missingDomTicks >= 10 && _missingDomTicks % 10 == 0)
         {
             // Auto-recovery attempt: re-assert hash anchor
-            _ = EvalOnUiAsync("if (window.location.hash !== '#/operator/vms' && (localStorage.getItem('fkuser') || localStorage.getItem('__youthnic_fkuser_backup'))) { window.location.hash = '#/operator/vms'; }");
+            _ = EvalOnUiAsync("""
+                try {
+                    var el = document.querySelector('.ant-result-403') || document.querySelector('.ant-result');
+                    if (el && el.innerText.indexOf('Unauthorized') !== -1) {
+                        localStorage.removeItem('fkuser');
+                        localStorage.removeItem('__youthnic_fkuser_backup');
+                        window.location.hash = '#/login';
+                    } else if (window.location.hash !== '#/operator/vms' && localStorage.getItem('fkuser')) {
+                        window.location.hash = '#/operator/vms';
+                    }
+                } catch (e) {}
+            """);
         }
 
         if (_missingDomTicks < MissingDomThreshold || _disconnectReported) return;

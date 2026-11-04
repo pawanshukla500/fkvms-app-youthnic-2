@@ -50,6 +50,10 @@ public sealed class UpdateChecker : IDisposable
     /// once per discovered version; re-announced only after an explicit CheckNowAsync.</summary>
     public event Action<ReleaseInfo>? UpdateAvailable;
 
+    /// <summary>Raised on the UI dispatcher when the installer for a newer release has finished
+    /// downloading to disk and is verified ready for immediate installation.</summary>
+    public event Action<ReleaseInfo, string>? UpdateReadyToInstall;
+
     /// <summary>Starts the periodic check. The first check runs in the background shortly
     /// after startup; it is deliberately not awaited so app startup is never blocked.</summary>
     public void Start()

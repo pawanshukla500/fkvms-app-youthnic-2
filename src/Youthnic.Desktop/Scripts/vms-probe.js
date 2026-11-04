@@ -122,14 +122,42 @@
 
   var loginLoading = !!(loginBtn && (loginBtn.classList.contains('ant-btn-loading') || loginBtn.disabled));
 
+  // Detect 403 / "Unauthorized Access" screen (e.g. invalid/expired session or lack of permissions)
+  var unauthorizedEl = document.querySelector('.ant-result-403') || document.querySelector('.ant-result');
+  var bodyText = document.body ? (document.body.innerText || '') : '';
+  var isUnauthorized = !!(unauthorizedEl && (
+    containsIgnoreCase(unauthorizedEl.innerText, 'Unauthorized Access') ||
+    containsIgnoreCase(unauthorizedEl.innerText, 'not authorized') ||
+    containsIgnoreCase(unauthorizedEl.innerText, '403')
+  )) || (
+    containsIgnoreCase(bodyText, 'Unauthorized Access') &&
+    containsIgnoreCase(bodyText, 'not authorized to access this page')
+  );
+
   var hasToken = false;
-  try {
-    var rawUser = localStorage.getItem('fkuser') || localStorage.getItem('__youthnic_fkuser_backup');
-    if (rawUser) {
-      var u = JSON.parse(rawUser);
-      hasToken = !!(u && (u.token || u.accessToken));
-    }
-  } catch (e) {}
+  if (!isUnauthorized) {
+    try {
+      var rawUser = localStorage.getItem('fkuser');
+      if (rawUser) {
+        var u = JSON.parse(rawUser);
+        if (u && (u.token || u.accessToken)) {
+          var token = u.token || u.accessToken;
+          var isExpired = false;
+          try {
+            var parts = token.split('.');
+            if (parts.length === 3) {
+              var b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+              var payload = JSON.parse(decodeURIComponent(escape(atob(b64))));
+              if (payload && payload.exp && (payload.exp * 1000) < Date.now()) {
+                isExpired = true;
+              }
+            }
+          } catch (pe) {}
+          hasToken = !isExpired;
+        }
+      }
+    } catch (e) {}
+  }
 
   return JSON.stringify({
     url: location.href,
@@ -144,6 +172,7 @@
     connectVisible: !!(connectBtn && visible(connectBtn)),
     recordVisible: isPacking,
     isPacking: isPacking,
-    hasToken: hasToken
+    hasToken: hasToken,
+    isUnauthorized: isUnauthorized
   });
 })()

@@ -162,6 +162,27 @@ public class VmsAutomationAndScriptTests
     }
 
     [Fact]
+    public void VmsProbe_DetectsUnauthorizedState()
+    {
+        var probeUnauthorized = new VmsProbe(
+            Url: "https://fkvms.synlabs.io/#/operator/vms",
+            Username: false,
+            Password: false,
+            Feed: false,
+            Awb: false,
+            FeedFilled: false,
+            LoginVisible: false,
+            ConnectVisible: false,
+            RecordVisible: false,
+            HasToken: false,
+            IsUnauthorized: true);
+
+        Assert.True(probeUnauthorized.IsUnauthorized);
+        Assert.False(probeUnauthorized.HasToken);
+        Assert.False(probeUnauthorized.OnLogin);
+    }
+
+    [Fact]
     public void ProductCardModel_VerificationProperties_FormatProperly()
     {
         var itemSingle = new Youthnic.Desktop.Models.LookupItem(

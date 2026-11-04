@@ -2,7 +2,7 @@
   'use strict';
   // Idempotent guard: never inject twice, never attach duplicate listeners.
   if (window.__youthnicScanObserver) return;
-  window.__youthnicScanObserver = { version: 3 };
+  window.__youthnicScanObserver = { version: 4 };
 
   var MIN_LEN = 4;
   var LISTENER_TAG = '__youthnicAwbListenersAttached';
@@ -158,55 +158,71 @@
     }
   });
 
-  // ---- Session Guardian & Keep-Alive ---------------------------------------
-  // Automatically keeps the VMS JWT token fresh, protects credentials against
-  // sudden network/timeout evictions, and ensures shifts run without logouts.
+  // ---- Session Guardian & Auto-Recovery ------------------------------------
+  // Automatically keeps the VMS JWT token fresh during active shifts, and instantly
+  // purges invalid or expired sessions to prevent "Unauthorized Access" (403) traps.
   (function initSessionGuardian() {
-    var BACKUP_KEY = '__youthnic_fkuser_backup';
-
-    // 1. Preserve and protect authentication tokens
-    function backupToken() {
+    function isTokenValid(token) {
+      if (!token || typeof token !== 'string') return false;
       try {
-        var current = localStorage.getItem('fkuser');
-        if (current && current.indexOf('token') !== -1) {
-          localStorage.setItem(BACKUP_KEY, current);
-        } else {
-          // If fkuser was cleared unexpectedly, restore from backup
-          var backup = localStorage.getItem(BACKUP_KEY);
-          if (backup && (!current || current === '{}')) {
-            localStorage.setItem('fkuser', backup);
+        var parts = token.split('.');
+        if (parts.length === 3) {
+          var b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          var payload = JSON.parse(decodeURIComponent(escape(atob(b64))));
+          if (payload && payload.exp && (payload.exp * 1000) < Date.now()) {
+            return false;
+          }
+        }
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function purgeDeadSession() {
+      try {
+        localStorage.removeItem('fkuser');
+        localStorage.removeItem('__youthnic_fkuser_backup');
+        sessionStorage.clear();
+      } catch (e) {}
+    }
+
+    // 1. Proactive 403 / "Unauthorized Access" Detector
+    // If Flipkart VMS displays the 403 Unauthorized Access screen, immediately
+    // wipe the dead session and redirect to #/login so automated login can run.
+    function checkUnauthorizedAndRecover() {
+      try {
+        var el = document.querySelector('.ant-result-403') || document.querySelector('.ant-result');
+        var text = (el ? el.innerText : '') + ' ' + (document.body ? document.body.innerText : '');
+        if (text.indexOf('Unauthorized Access') !== -1 || text.indexOf('not authorized to access this page') !== -1) {
+          purgeDeadSession();
+          if (location.hash !== '#/login') {
+            location.hash = '#/login';
           }
         }
       } catch (e) {}
     }
 
-    // 2. Wrap localStorage.clear to protect backup from unexpected evictions
-    try {
-      if (!window.__youthnicClearWrapped && window.localStorage) {
-        window.__youthnicClearWrapped = true;
-        var originalClear = window.localStorage.clear.bind(window.localStorage);
-        window.localStorage.clear = function () {
-          var saved = window.localStorage.getItem(BACKUP_KEY) || window.localStorage.getItem('fkuser');
-          originalClear();
-          if (saved) {
-            try { window.localStorage.setItem(BACKUP_KEY, saved); } catch (e) {}
-          }
-        };
-      }
-    } catch (e) {}
+    setInterval(checkUnauthorizedAndRecover, 800);
 
-    // Backup immediately and on storage changes
-    backupToken();
-    window.addEventListener('storage', backupToken);
-
-    // 3. Proactive Keep-Alive: Ping session every 2.5 minutes
+    // 2. Proactive Keep-Alive: Ping session every 2.5 minutes
     function performKeepAlive() {
-      backupToken();
       try {
-        var userStr = localStorage.getItem('fkuser') || localStorage.getItem(BACKUP_KEY);
+        var userStr = localStorage.getItem('fkuser');
         if (!userStr) return;
         var u = JSON.parse(userStr);
         if (!u || !u.token) return;
+
+        // Check if token is already expired locally
+        if (!isTokenValid(u.token)) {
+          if (u.refreshToken) {
+            refreshJwt(u.refreshToken);
+          } else {
+            purgeDeadSession();
+            location.hash = '#/login';
+          }
+          return;
+        }
 
         // Ping lightweight authenticated user endpoint
         fetch('/api/user/menu', {
@@ -216,24 +232,37 @@
             'Content-Type': 'application/json'
           }
         }).then(function (res) {
-          if (res.status === 401 && u.refreshToken) {
-            // Proactively refresh JWT before Axios interceptor aborts
-            return fetch('/auth/refresh', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ refreshToken: u.refreshToken })
-            }).then(function (r) {
-              if (r.ok) return r.json();
-              return null;
-            }).then(function (data) {
-              if (data && data.token) {
-                localStorage.setItem('fkuser', JSON.stringify(data));
-                localStorage.setItem(BACKUP_KEY, JSON.stringify(data));
-              }
-            });
+          if (res.status === 401) {
+            if (u.refreshToken) {
+              refreshJwt(u.refreshToken);
+            } else {
+              purgeDeadSession();
+              location.hash = '#/login';
+            }
           }
         }).catch(function () {});
       } catch (e) {}
+    }
+
+    function refreshJwt(refreshToken) {
+      fetch('/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: refreshToken })
+      }).then(function (r) {
+        if (r.ok) return r.json();
+        return null;
+      }).then(function (data) {
+        if (data && data.token) {
+          localStorage.setItem('fkuser', JSON.stringify(data));
+        } else {
+          // Token refresh rejected — clear session and redirect to login
+          purgeDeadSession();
+          location.hash = '#/login';
+        }
+      }).catch(function () {
+        // Network error during refresh — let retry on next tick
+      });
     }
 
     // Run keep-alive every 150 seconds (2.5 minutes)
@@ -241,14 +270,17 @@
     // Initial keepalive after 10 seconds
     setTimeout(performKeepAlive, 10000);
 
-    // 4. Ensure authenticated operators stay on operator/vms
+    // 3. Ensure valid operators stay on operator/vms
     setInterval(function () {
       try {
-        var userStr = localStorage.getItem('fkuser') || localStorage.getItem(BACKUP_KEY);
-        if (userStr && userStr.indexOf('token') !== -1) {
-          var hash = location.hash || '';
-          if (hash === '' || hash === '#/' || hash === '#/home') {
-            location.hash = '#/operator/vms';
+        var userStr = localStorage.getItem('fkuser');
+        if (userStr) {
+          var u = JSON.parse(userStr);
+          if (u && u.token && isTokenValid(u.token)) {
+            var hash = location.hash || '';
+            if (hash === '' || hash === '#/' || hash === '#/home') {
+              location.hash = '#/operator/vms';
+            }
           }
         }
       } catch (e) {}

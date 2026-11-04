@@ -101,6 +101,7 @@ public partial class PackingWindow : Window
 
         _updateChecker = new UpdateChecker(Dispatcher);
         _updateChecker.UpdateAvailable += OnUpdateAvailable;
+        _updateChecker.UpdateReadyToInstall += OnUpdateReadyToInstall;
 
         Activated += async (_, _) => await FocusScanBarAsync();
 
@@ -201,11 +202,42 @@ public partial class PackingWindow : Window
 
     // ---- In-App Update Flow ------------------------------------------------
 
+    private bool _hasPromptedUpdate;
+
     private void OnUpdateAvailable(ReleaseInfo release)
     {
         _announcedUpdate = release;
         PackingUpdateButton.Content = $"⚡ Update Available — v{release.Version}";
         PackingUpdateButton.Visibility = Visibility.Visible;
+    }
+
+    private void OnUpdateReadyToInstall(ReleaseInfo release, string setupPath)
+    {
+        _announcedUpdate = release;
+        _downloadedVersion = release.Version;
+        PackingUpdateButton.Content = $"⚡ Install Update v{release.Version} (Ready)";
+        PackingUpdateButton.Visibility = Visibility.Visible;
+        PackingUpdateButton.IsEnabled = true;
+
+        // When the app opens or is idle (not actively recording/packing),
+        // automatically prompt the operator once so they can update immediately with 1 click.
+        if (!_hasPromptedUpdate && !_automation.IsPackingActive)
+        {
+            _hasPromptedUpdate = true;
+            var res = MessageBox.Show(
+                this,
+                $"A new update (v{release.Version}) is downloaded and ready to install.
+
+Install now? The desk will restart to complete the update.",
+                $"Update Ready — v{release.Version}",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+
+            if (res == MessageBoxResult.Yes)
+            {
+                UpdateChecker.LaunchInstallerAndExit(setupPath);
+            }
+        }
     }
 
     private void CheckUpdatesButton_Click(object sender, RoutedEventArgs e)
@@ -406,8 +438,14 @@ public partial class PackingWindow : Window
             }
             if (!args.IsSuccess)
             {
-                StatusText.Text = $"Navigation failed ({args.WebErrorStatus}). Check the VMS URL or network.";
-                RestartButton.Visibility = Visibility.Visible;
+                // CoreWebView2WebErrorStatus.ConnectionAborted occurs routinely during
+                // client-side SPA routing and hash navigation (e.g. window.location.hash = '#/login').
+                // It is benign and should never falsely alarm the operator.
+                if (args.WebErrorStatus != CoreWebView2WebErrorStatus.ConnectionAborted)
+                {
+                    StatusText.Text = $"Navigation failed ({args.WebErrorStatus}). Check the VMS URL or network.";
+                    RestartButton.Visibility = Visibility.Visible;
+                }
             }
         };
 
@@ -477,7 +515,7 @@ public partial class PackingWindow : Window
         }
     }
 
-    private void RestartSession()
+    private async void RestartSession()
     {
         AppLog.Info("PackingWindow: manual session restart");
         StatusText.Text = string.Empty;
@@ -488,6 +526,23 @@ public partial class PackingWindow : Window
         _currentSeq = 0;
         CloseModal();
         Panel.ShowIdle();
+
+        // Purge any zombie / expired token so manual restart forces a clean login
+        try
+        {
+            if (_coreReady && WebView.CoreWebView2 is not null)
+            {
+                await WebView.CoreWebView2.ExecuteScriptAsync("""
+                    try {
+                        localStorage.removeItem('fkuser');
+                        localStorage.removeItem('__youthnic_fkuser_backup');
+                        sessionStorage.clear();
+                    } catch (e) {}
+                """);
+            }
+        }
+        catch { /* best effort */ }
+
         if (_coreReady && Uri.TryCreate(_config.VmsUrl, UriKind.Absolute, out var uri))
         {
             WebView.Source = uri;

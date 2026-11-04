@@ -29,6 +29,7 @@ public partial class SelectionWindow : Window
         AppLog.Info($"Youthnic Packing Desk starting — version {version}");
 
         _updateChecker.UpdateAvailable += OnUpdateAvailable;
+        _updateChecker.UpdateReadyToInstall += OnUpdateReadyToInstall;
 
         Loaded += (_, _) =>
         {
@@ -122,11 +123,40 @@ public partial class SelectionWindow : Window
     // ---- Update flow -------------------------------------------------------
 
     /// <summary>Raised on the UI dispatcher by UpdateChecker — safe to touch UI here.</summary>
+    private bool _hasPromptedUpdate;
+
     private void OnUpdateAvailable(ReleaseInfo release)
     {
         _announcedUpdate = release;
         UpdateButton.Content = $"Update available — v{release.Version}";
         UpdateButton.Visibility = Visibility.Visible;
+    }
+
+    private void OnUpdateReadyToInstall(ReleaseInfo release, string setupPath)
+    {
+        _announcedUpdate = release;
+        _downloadedVersion = release.Version;
+        UpdateButton.Content = $"⚡ Install v{release.Version} (Ready)";
+        UpdateButton.Visibility = Visibility.Visible;
+        UpdateButton.IsEnabled = true;
+
+        if (!_hasPromptedUpdate)
+        {
+            _hasPromptedUpdate = true;
+            var res = MessageBox.Show(
+                this,
+                $"A new update (v{release.Version}) has been downloaded and is ready to install.
+
+Install now before opening a packing desk?",
+                $"Update Ready — v{release.Version}",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+
+            if (res == MessageBoxResult.Yes)
+            {
+                UpdateChecker.LaunchInstallerAndExit(setupPath);
+            }
+        }
     }
 
     /// <summary>Manual on-demand check (clicking the version label). Silent when up to date.</summary>

@@ -159,6 +159,76 @@
     } catch (e) {}
   }
 
+  // Extract Pending Requests and Error Requests counts from VMS DOM & Storage
+  var pendingCount = 0;
+  var errorCount = 0;
+
+  try {
+    var rawPending = localStorage.getItem('pendingCountVMS');
+    if (rawPending !== null) {
+      var pVal = parseInt(rawPending, 10);
+      if (Number.isFinite(pVal) && pVal > 0) pendingCount = Math.max(pendingCount, pVal);
+    }
+  } catch (e) {}
+
+  try {
+    var rawError = localStorage.getItem('errorCountVMS');
+    if (rawError !== null) {
+      var eVal = parseInt(rawError, 10);
+      if (Number.isFinite(eVal) && eVal > 0) errorCount = Math.max(errorCount, eVal);
+    }
+  } catch (e) {}
+
+  // Check buttons (e.g. "Mass Retry -0", "Mass Retry - 2", "Mass Retry -2")
+  try {
+    var buttons = document.querySelectorAll('button, [role="button"], a, span');
+    for (var bi = 0; bi < buttons.length; bi++) {
+      var bText = (buttons[bi].innerText || buttons[bi].textContent || '').trim();
+      var retryMatch = bText.match(/Mass\s+Retry\s*[-–—:]*\s*(\d+)/i);
+      if (retryMatch) {
+        var rNum = parseInt(retryMatch[1], 10);
+        if (Number.isFinite(rNum)) {
+          errorCount = Math.max(errorCount, rNum);
+        }
+      }
+    }
+  } catch (e) {}
+
+  // Check floating badges on left of camera area and Ant Design badges
+  try {
+    var allBadges = document.querySelectorAll('div, span, button');
+    for (var bi2 = 0; bi2 < allBadges.length; bi2++) {
+      var bEl = allBadges[bi2];
+      var bTextContent = (bEl.innerText || '').trim();
+      if (/^\d+$/.test(bTextContent)) {
+        var numVal = parseInt(bTextContent, 10);
+        var svgOrI = bEl.querySelector('svg, i, .anticon');
+        if (svgOrI || bEl.className) {
+          var cls = ((bEl.className || '') + ' ' + (svgOrI ? (svgOrI.className || '') : '')).toLowerCase();
+          var style = window.getComputedStyle(bEl);
+          var bg = (style.backgroundColor || '').toLowerCase();
+          var col = (style.color || '').toLowerCase();
+          var isAmber = cls.indexOf('warning') !== -1 || bg.indexOf('250, 173, 20') !== -1 || col.indexOf('250, 173, 20') !== -1 || bg.indexOf('faad14') !== -1 || bg.indexOf('e6a23c') !== -1;
+          var isRed = cls.indexOf('error') !== -1 || cls.indexOf('danger') !== -1 || bg.indexOf('245, 34, 45') !== -1 || bg.indexOf('255, 77, 79') !== -1 || bg.indexOf('f5222d') !== -1 || bg.indexOf('ff4d4f') !== -1;
+          if (isAmber) pendingCount = Math.max(pendingCount, numVal);
+          if (isRed) errorCount = Math.max(errorCount, numVal);
+        }
+      }
+    }
+  } catch (e) {}
+
+  // Check headers / labels like "Pending Requests (X)" or "Error Requests (X)"
+  try {
+    var headers = document.querySelectorAll('h1, h2, h3, h4, h5, div, span, p');
+    for (var hi = 0; hi < headers.length; hi++) {
+      var hText = (headers[hi].innerText || '').trim();
+      var errMatch = hText.match(/Error\s+Requests?\s*\(?(\d+)\)?/i);
+      if (errMatch) errorCount = Math.max(errorCount, parseInt(errMatch[1], 10));
+      var pendMatch = hText.match(/Pending\s+Requests?\s*\(?(\d+)\)?/i);
+      if (pendMatch) pendingCount = Math.max(pendingCount, parseInt(pendMatch[1], 10));
+    }
+  } catch (e) {}
+
   return JSON.stringify({
     url: location.href,
     ready: document.readyState,
@@ -173,6 +243,8 @@
     recordVisible: isPacking,
     isPacking: isPacking,
     hasToken: hasToken,
-    isUnauthorized: isUnauthorized
+    isUnauthorized: isUnauthorized,
+    pendingCount: pendingCount,
+    errorCount: errorCount
   });
 })()

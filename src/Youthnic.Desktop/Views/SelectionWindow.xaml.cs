@@ -41,6 +41,8 @@ public partial class SelectionWindow : Window
             _downloadCts?.Cancel();
             _updateChecker.Stop();
             _updateChecker.Dispose();
+            Application.Current.Shutdown();
+            Environment.Exit(0);
         };
     }
 
@@ -115,7 +117,12 @@ public partial class SelectionWindow : Window
     {
         if (_options is null) return;
         var window = new PackingWindow(marketplace, _options) { Owner = this };
-        window.Closed += (_, _) => Refresh();
+        window.Closed += (_, _) =>
+        {
+            Refresh();
+            Show();
+            Activate();
+        };
         window.Show();
         Hide();
     }

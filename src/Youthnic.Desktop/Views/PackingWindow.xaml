@@ -34,6 +34,8 @@
                     <TextBlock x:Name="StateText" Text="Starting…" Foreground="#9AA3B2" FontSize="12"/>
                     <TextBlock x:Name="ShiftPacksText" Text="Shift: 0 packs" Foreground="#34D399" FontSize="12" FontWeight="SemiBold"
                                Margin="16,0,0,0" ToolTip="Total verified packages completed during this shift"/>
+                    <TextBlock x:Name="UploadStatusText" Text="● Uploads Clean (0)" Foreground="#34D399" FontSize="12" FontWeight="SemiBold"
+                               Margin="16,0,0,0" ToolTip="VMS video upload status"/>
                     <TextBlock x:Name="StatusText" Foreground="#F0C36D" FontSize="12" Margin="16,0,0,0"
                                TextWrapping="Wrap"/>
                     <TextBlock x:Name="UpdateProgressText" Foreground="#38BDF8" FontSize="12" Margin="16,0,0,0"

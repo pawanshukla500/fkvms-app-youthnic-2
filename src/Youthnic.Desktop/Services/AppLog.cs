@@ -40,6 +40,8 @@ public static class AppLog
 
     public static void Info(string message) => Write(Level.Info, message);
 
+    public static void Warn(string message) => Write(Level.Info, $"[WARN] {message}");
+
     public static void Error(string message, Exception? ex = null) =>
         Write(Level.Error, ex is null ? message : $"{message} | {ex}");
 

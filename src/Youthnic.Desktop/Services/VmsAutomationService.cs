@@ -26,7 +26,9 @@ public sealed record VmsProbe(
     bool RecordVisible,
     bool LoginLoading = false,
     bool HasToken = false,
-    bool IsUnauthorized = false)
+    bool IsUnauthorized = false,
+    int PendingCount = 0,
+    int ErrorCount = 0)
 {
     public bool OnLogin => Url.Contains("#/login", StringComparison.OrdinalIgnoreCase)
         || Url.EndsWith("/login", StringComparison.OrdinalIgnoreCase)
@@ -77,6 +79,18 @@ public sealed class VmsAutomationService : IDisposable
 
     public bool IsPackingActive => State == AutomationState.Packing;
 
+    /// <summary>Number of videos currently in the VMS upload queue waiting to finish uploading.</summary>
+    public int PendingRequestsCount { get; private set; }
+
+    /// <summary>Number of stuck / failed video uploads in the VMS that need retry.</summary>
+    public int ErrorRequestsCount { get; private set; }
+
+    /// <summary>True when any recorded video is uploading or stuck in error state.</summary>
+    public bool HasPendingOrStuckUploads => PendingRequestsCount > 0 || ErrorRequestsCount > 0;
+
+    /// <summary>Raised on the UI dispatcher whenever pending or error upload counts change.</summary>
+    public event Action<int, int>? UploadStatusChanged;
+
     /// <summary>Raised on the UI dispatcher whenever the automation state changes.</summary>
     public event Action<AutomationState>? StateChanged;
 
@@ -120,6 +134,8 @@ public sealed class VmsAutomationService : IDisposable
         _loginSubmitted = false;
         _loginSubmittedTicks = 0;
         _connectClicked = false;
+        PendingRequestsCount = 0;
+        ErrorRequestsCount = 0;
     }
 
     public void Dispose() => Stop();
@@ -173,6 +189,15 @@ public sealed class VmsAutomationService : IDisposable
         if (probe is null || string.IsNullOrWhiteSpace(probe.Url)) return;
 
         ct.ThrowIfCancellationRequested();
+
+        var pending = probe.PendingCount;
+        var errors = probe.ErrorCount;
+        if (pending != PendingRequestsCount || errors != ErrorRequestsCount)
+        {
+            PendingRequestsCount = pending;
+            ErrorRequestsCount = errors;
+            _dispatcher.BeginInvoke(() => UploadStatusChanged?.Invoke(pending, errors));
+        }
 
         if (probe.IsUnauthorized)
         {

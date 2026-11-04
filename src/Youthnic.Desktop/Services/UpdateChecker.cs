@@ -85,9 +85,16 @@ public sealed class UpdateChecker : IDisposable
                 try
                 {
                     var destination = Path.Combine(UpdatesDir, SetupAssetName);
+                    if (File.Exists(destination))
+                    {
+                        _ = _dispatcher.BeginInvoke(() => UpdateReadyToInstall?.Invoke(release, destination));
+                        return;
+                    }
+
                     AppLog.Info($"UpdateChecker: auto-pulling update v{release.Version} to {destination}...");
                     await DownloadAsync(release, destination, null, CancellationToken.None).ConfigureAwait(false);
                     AppLog.Info($"UpdateChecker: auto-pull complete for v{release.Version}");
+                    _ = _dispatcher.BeginInvoke(() => UpdateReadyToInstall?.Invoke(release, destination));
                 }
                 catch (Exception ex)
                 {

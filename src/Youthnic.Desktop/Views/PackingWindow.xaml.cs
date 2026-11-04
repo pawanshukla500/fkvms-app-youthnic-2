@@ -224,11 +224,12 @@ public partial class PackingWindow : Window
         if (!_hasPromptedUpdate && !_automation.IsPackingActive)
         {
             _hasPromptedUpdate = true;
+            var message = $"A new update (v{release.Version}) is downloaded and ready to install." +
+                          Environment.NewLine + Environment.NewLine +
+                          "Install now? The desk will restart to complete the update.";
             var res = MessageBox.Show(
                 this,
-                $"A new update (v{release.Version}) is downloaded and ready to install.
-
-Install now? The desk will restart to complete the update.",
+                message,
                 $"Update Ready — v{release.Version}",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);

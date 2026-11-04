@@ -143,11 +143,12 @@ public partial class SelectionWindow : Window
         if (!_hasPromptedUpdate)
         {
             _hasPromptedUpdate = true;
+            var message = $"A new update (v{release.Version}) has been downloaded and is ready to install." +
+                          Environment.NewLine + Environment.NewLine +
+                          "Install now before opening a packing desk?";
             var res = MessageBox.Show(
                 this,
-                $"A new update (v{release.Version}) has been downloaded and is ready to install.
-
-Install now before opening a packing desk?",
+                message,
                 $"Update Ready — v{release.Version}",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);

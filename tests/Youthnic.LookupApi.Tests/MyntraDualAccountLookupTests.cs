@@ -29,8 +29,19 @@ public class MyntraDualAccountLookupTests
         var sellers = LookupService.ResolveSellerFilters("myntra", inputSeller);
 
         Assert.NotNull(sellers);
+        Assert.Equal(2, sellers.Length);
         Assert.Contains("ETHNIC JUNCTION - MYNTRA YOUTHNIC", sellers);
         Assert.Contains("VB EXPORT - MYNTRA PPMP", sellers);
+    }
+
+    [Fact]
+    public void Myntra_WhenCustomAccountPassed_DoesNotIncludeDefaultAccounts()
+    {
+        var sellers = LookupService.ResolveSellerFilters("myntra", "CUSTOM_SELLER_CORP");
+
+        Assert.NotNull(sellers);
+        Assert.Single(sellers);
+        Assert.Equal("CUSTOM_SELLER_CORP", sellers[0]);
     }
 
     [Fact]

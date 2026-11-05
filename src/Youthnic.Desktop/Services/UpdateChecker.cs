@@ -29,6 +29,9 @@ public sealed class UpdateChecker : IDisposable
     private readonly HttpClient _http;
     private readonly DispatcherTimer _timer;
     private ReleaseInfo? _pending;
+    private static readonly SemaphoreSlim DownloadLock = new(1, 1);
+    private static Task? _activeDownloadTask;
+    private static string? _activeDownloadVersion;
 
     public UpdateChecker(Dispatcher dispatcher)
     {
@@ -122,18 +125,60 @@ public sealed class UpdateChecker : IDisposable
     {
         Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, release.SetupAssetUrl);
-        request.Headers.UserAgent.ParseAdd("YouthnicPackingDesk-Updater");
-        using var response = await _http.SendAsync(
-            request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
-        var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-        await using var input = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-
-        var tempPath = destinationPath + ".part";
+        // Fast-path: if valid setup already downloaded and exists, reuse immediately without network collision
         try
         {
+            if (File.Exists(destinationPath))
+            {
+                var info = new FileInfo(destinationPath);
+                if (info.Length > 1024 * 1024)
+                {
+                    progress?.Report(1.0);
+                    return;
+                }
+            }
+        }
+        catch { }
+
+        Task downloadTask;
+        await DownloadLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            // Coalesce concurrent download requests (e.g. background auto-pull vs user click)
+            if (_activeDownloadTask is not null && string.Equals(_activeDownloadVersion, release.Version, StringComparison.OrdinalIgnoreCase))
+            {
+                downloadTask = _activeDownloadTask;
+            }
+            else
+            {
+                _activeDownloadVersion = release.Version;
+                downloadTask = _activeDownloadTask = PerformDownloadCoreAsync(release, destinationPath, progress, ct);
+            }
+        }
+        finally
+        {
+            DownloadLock.Release();
+        }
+
+        await downloadTask.ConfigureAwait(false);
+    }
+
+    private async Task PerformDownloadCoreAsync(
+        ReleaseInfo release, string destinationPath, IProgress<double>? progress, CancellationToken ct)
+    {
+        // Use unique part filename per download to eliminate any possibility of file-in-use collisions
+        var tempPath = destinationPath + $".{release.Version}.{Guid.NewGuid():N}.part";
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, release.SetupAssetUrl);
+            request.Headers.UserAgent.ParseAdd("YouthnicPackingDesk-Updater");
+            using var response = await _http.SendAsync(
+                request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+            await using var input = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+
             await using (var output = new FileStream(
                 tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
             {
@@ -157,6 +202,22 @@ public sealed class UpdateChecker : IDisposable
             TryDeleteQuiet(tempPath);
             throw;
         }
+        finally
+        {
+            await DownloadLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                if (string.Equals(_activeDownloadVersion, release.Version, StringComparison.OrdinalIgnoreCase))
+                {
+                    _activeDownloadTask = null;
+                    _activeDownloadVersion = null;
+                }
+            }
+            finally
+            {
+                DownloadLock.Release();
+            }
+        }
     }
 
     /// <summary>Launches the downloaded Inno installer and exits this process so the
@@ -164,8 +225,16 @@ public sealed class UpdateChecker : IDisposable
     public static void LaunchInstallerAndExit(string setupPath)
     {
         AppLog.Info("UpdateChecker: launching downloaded installer — " + setupPath);
-        Process.Start(new ProcessStartInfo(setupPath) { UseShellExecute = true });
+        try
+        {
+            Process.Start(new ProcessStartInfo(setupPath) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("UpdateChecker: failed to launch setup", ex);
+        }
         System.Windows.Application.Current.Shutdown();
+        Environment.Exit(0);
     }
 
     public static string UpdatesDir =>

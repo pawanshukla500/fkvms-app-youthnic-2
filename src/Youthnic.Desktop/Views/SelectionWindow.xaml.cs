@@ -119,9 +119,17 @@ public partial class SelectionWindow : Window
         var window = new PackingWindow(marketplace, _options) { Owner = this };
         window.Closed += (_, _) =>
         {
-            Refresh();
-            Show();
-            Activate();
+            if (window.IsSwitchingDesk)
+            {
+                Refresh();
+                Show();
+                Activate();
+            }
+            else
+            {
+                Application.Current.Shutdown();
+                Environment.Exit(0);
+            }
         };
         window.Show();
         Hide();

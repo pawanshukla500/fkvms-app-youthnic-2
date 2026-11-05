@@ -37,22 +37,24 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
 
         if (mp.Equals("myntra", StringComparison.OrdinalIgnoreCase))
         {
-            // Myntra marketplace encompasses BOTH seller accounts:
-            // "ETHNIC JUNCTION - Myntra Youthnic" and "VB EXPORT - Myntra PPMP".
-            // Even if the desk was configured with only "ETHNIC JUNCTION - Myntra Youthnic"
-            // (e.g. at install time), Myntra lookups MUST automatically include both accounts.
-            var set = new HashSet<string>(DefaultMyntraSellers, StringComparer.OrdinalIgnoreCase);
-
-            if (!string.IsNullOrWhiteSpace(seller))
+            if (string.IsNullOrWhiteSpace(seller))
             {
-                var parts = seller.Split([',', ';', '|', '+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                return DefaultMyntraSellers.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+            }
+
+            var parts = seller.Split([',', ';', '|', '+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var isDefault = parts.Any(p => DefaultMyntraSellers.Contains(p, StringComparer.OrdinalIgnoreCase));
+            if (isDefault)
+            {
+                var set = new HashSet<string>(DefaultMyntraSellers, StringComparer.OrdinalIgnoreCase);
                 foreach (var part in parts)
                 {
                     set.Add(part.ToUpperInvariant());
                 }
+                return set.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
             }
 
-            return set.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+            return parts.Select(p => p.ToUpperInvariant()).Distinct().OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
         if (mp.Equals("flipkart", StringComparison.OrdinalIgnoreCase))
@@ -378,12 +380,11 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
                 }
                 else if (!string.IsNullOrEmpty(baseSku))
                 {
-                    var prefixMatch = found.FirstOrDefault(kvp =>
-                        kvp.Key.StartsWith(baseSku, StringComparison.OrdinalIgnoreCase) ||
-                        baseSku.StartsWith(kvp.Key, StringComparison.OrdinalIgnoreCase));
-                    if (!string.IsNullOrEmpty(prefixMatch.Key))
+                    var baseMatch = found.FirstOrDefault(kvp =>
+                        string.Equals(ExtractBaseSku(kvp.Key), baseSku, StringComparison.OrdinalIgnoreCase));
+                    if (!string.IsNullOrEmpty(baseMatch.Key))
                     {
-                        match = prefixMatch.Value;
+                        match = baseMatch.Value;
                         hasMatch = true;
                     }
                     else
@@ -392,11 +393,7 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
                         if (normBase.Length >= 4)
                         {
                             var normMatch = found.FirstOrDefault(kvp =>
-                            {
-                                var k = NormalizeSku(kvp.Key);
-                                return k.StartsWith(normBase, StringComparison.OrdinalIgnoreCase) ||
-                                       normBase.StartsWith(k, StringComparison.OrdinalIgnoreCase);
-                            });
+                                string.Equals(NormalizeSku(ExtractBaseSku(kvp.Key)), normBase, StringComparison.OrdinalIgnoreCase));
                             if (!string.IsNullOrEmpty(normMatch.Key))
                             {
                                 match = normMatch.Value;

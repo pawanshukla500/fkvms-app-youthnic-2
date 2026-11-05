@@ -66,8 +66,10 @@ public sealed class LookupApiClient : IDisposable
             response = await client.SendAsync(request, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
         }
-        catch (Exception ex) when (ex is HttpRequestException or TimeoutException or TaskCanceledException && !ct.IsCancellationRequested)
+        catch (Exception ex) when (IsTransient(ex) && !ct.IsCancellationRequested)
         {
+            response?.Dispose();
+            response = null;
             // Fast retry on transient warehouse Wi-Fi glitch / connection reset
             AppLog.Debug($"LookupApiClient: transient network blip for '{awb}', retrying: {ex.Message}");
             await Task.Delay(250, ct).ConfigureAwait(false);
@@ -114,6 +116,23 @@ public sealed class LookupApiClient : IDisposable
             ? DeskOptions.DefaultLookupApiUrl
             : lookupApiUrl.Trim();
         return trimmed.TrimEnd('/');
+    }
+
+    private static bool IsTransient(Exception ex)
+    {
+        if (ex is HttpRequestException hex)
+        {
+            // If we received an HTTP status code, only 5xx (server errors) are transient and retried.
+            // 4xx client errors (400 Bad Request, 401 Unauthorized, 404 Not Found) are permanent.
+            if (hex.StatusCode.HasValue)
+            {
+                var code = (int)hex.StatusCode.Value;
+                return code >= 500;
+            }
+            // Network failures, DNS errors, socket resets have no status code -> transient
+            return true;
+        }
+        return ex is TimeoutException or TaskCanceledException;
     }
 
     public void Dispose() => _client?.Dispose();

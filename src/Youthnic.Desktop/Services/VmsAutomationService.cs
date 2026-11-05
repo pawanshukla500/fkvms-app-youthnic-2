@@ -120,9 +120,13 @@ public sealed class VmsAutomationService : IDisposable
         _ = Task.Run(() => LoopAsync(_loopCts.Token));
     }
 
+    public MarketplaceConfig? CurrentConfig => _config;
+
     public void UpdateConfig(MarketplaceConfig config)
     {
         _config = config;
+        _connectClicked = false;
+        _missingDomTicks = 0;
         AppLog.Info($"VmsAutomation: updated credentials/feed for {_marketplace} (User: {config.Username}, Feed: {config.FeedId})");
     }
 
@@ -196,7 +200,7 @@ public sealed class VmsAutomationService : IDisposable
         {
             PendingRequestsCount = pending;
             ErrorRequestsCount = errors;
-            _dispatcher.BeginInvoke(() => UploadStatusChanged?.Invoke(pending, errors));
+            _ = _dispatcher.BeginInvoke(() => UploadStatusChanged?.Invoke(pending, errors));
         }
 
         if (probe.IsUnauthorized)

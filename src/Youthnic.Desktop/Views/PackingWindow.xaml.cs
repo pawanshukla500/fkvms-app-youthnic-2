@@ -80,6 +80,10 @@ public partial class PackingWindow : Window
 
     private bool _processFailedDialogOpen;
 
+    public bool IsSwitchingDesk { get; private set; }
+
+    private bool _isClosing;
+
 
 
     public PackingWindow(Marketplace marketplace, DeskOptions options)
@@ -218,7 +222,11 @@ public partial class PackingWindow : Window
 
         {
 
+            if (_isClosing) return;
+
             await InitializeWebViewAsync();
+
+            if (_isClosing) return;
 
             _updateChecker.Start();
 
@@ -1108,6 +1116,30 @@ public partial class PackingWindow : Window
 
 
 
+        private void SwitchDeskButton_Click(object sender, RoutedEventArgs e)
+
+    {
+
+        IsSwitchingDesk = true;
+
+        Close();
+
+    }
+
+
+
+    private void ExitAppButton_Click(object sender, RoutedEventArgs e)
+
+    {
+
+        IsSwitchingDesk = false;
+
+        Close();
+
+    }
+
+
+
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
 
@@ -1166,6 +1198,8 @@ public partial class PackingWindow : Window
 
     {
 
+        _isClosing = true;
+
         var pending = _automation.PendingRequestsCount;
 
         var errors = _automation.ErrorRequestsCount;
@@ -1212,6 +1246,8 @@ Are you SURE you want to FORCE CLOSE anyway? (Not recommended)
 
             {
 
+                _isClosing = false;
+
                 e.Cancel = true;
 
                 return;
@@ -1243,6 +1279,8 @@ Are you SURE you want to FORCE CLOSE anyway? (Not recommended)
             if (result != MessageBoxResult.Yes)
 
             {
+
+                _isClosing = false;
 
                 e.Cancel = true;
 
@@ -1322,6 +1360,8 @@ Are you SURE you want to FORCE CLOSE anyway? (Not recommended)
 
         {
 
+            var oldVmsUrl = _config.VmsUrl;
+
             _options = SecureConfigStore.Load();
 
             _config = _options.For(_marketplace);
@@ -1331,6 +1371,18 @@ Are you SURE you want to FORCE CLOSE anyway? (Not recommended)
             Title = $"Youthnic Packing Desk — {_marketplace} ({_options.DeskName})  ·  v{UpdateChecker.CurrentVersion()}";
 
             StatusText.Text = $"Settings updated: {_options.DeskName} (User: {_config.Username}, Feed: {_config.FeedId})";
+
+
+
+            if (!string.Equals(oldVmsUrl, _config.VmsUrl, StringComparison.OrdinalIgnoreCase) &&
+
+                _coreReady && Uri.TryCreate(_config.VmsUrl, UriKind.Absolute, out var newUri))
+
+            {
+
+                WebView.CoreWebView2.Navigate(newUri.AbsoluteUri);
+
+            }
 
         }
 

@@ -59,7 +59,12 @@ public sealed class LookupCache
 
             if (entry.IsSliding)
             {
-                entry.LastAccessUtc = _clock();
+                var now = _clock();
+                lock (entry)
+                {
+                    if (now > entry.LastAccessUtc)
+                        entry.LastAccessUtc = now;
+                }
             }
             response = entry.Response;
             return true;

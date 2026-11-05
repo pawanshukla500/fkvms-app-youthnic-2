@@ -73,11 +73,16 @@ public sealed class LookupApiClient : IDisposable
         }
         catch (Exception ex) when (IsTransient(ex) && !ct.IsCancellationRequested)
         {
+            var delayMs = 250;
+            if (response?.Headers.RetryAfter?.Delta is { } delta && delta > TimeSpan.Zero)
+            {
+                delayMs = Math.Min((int)delta.TotalMilliseconds, 5000);
+            }
             response?.Dispose();
             response = null;
             // Fast retry on transient warehouse Wi-Fi glitch / connection reset
-            AppLog.Debug($"LookupApiClient: transient network blip for '{awb}', retrying: {ex.Message}");
-            await Task.Delay(250, ct).ConfigureAwait(false);
+            AppLog.Debug($"LookupApiClient: transient network blip for '{awb}', retrying in {delayMs}ms: {ex.Message}");
+            await Task.Delay(delayMs, ct).ConfigureAwait(false);
             using var retryRequest = BuildRequest(HttpMethod.Get, url, apiKey);
             response = await client.SendAsync(retryRequest, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();

@@ -477,6 +477,7 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
         return s;
     }
 
+    /// <summary>Extracts the garment size from the SKU suffix if recognized.</summary>
     public static string? ExtractSize(string sku)
     {
         if (string.IsNullOrWhiteSpace(sku)) return null;
@@ -502,11 +503,12 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
         var u = s.Trim().ToUpperInvariant();
         return u switch
         {
-            "XXS" or "XS" or "S" or "M" or "L" or "XL" or "XXL" or "2XL" or "3XL" or "4XL" or "5XL" or "6XL" or "FREE" or "FS" => true,
+            "XXS" or "XS" or "S" or "M" or "L" or "XL" or "XXL" or "2XL" or "3XL" or "4XL" or "5XL" or "6XL" or "FREE" or "FS" or "FREE SIZE" or "FREESIZE" => true,
             _ => false
         };
     }
 
+    /// <summary>Formats a raw SKU into a clean, human-readable packing title.</summary>
     public static string FormatCleanTitle(string sku)
     {
         if (string.IsNullOrWhiteSpace(sku)) return string.Empty;

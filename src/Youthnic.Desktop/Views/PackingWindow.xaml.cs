@@ -784,6 +784,8 @@ public partial class PackingWindow : Window
 
         {
 
+            if (_isClosing) return;
+
             AppLog.Error("PackingWindow: WebView2 initialization failed", ex);
 
             ShowFatal($"WebView2 failed to initialize: {ex.Message}");
@@ -1380,7 +1382,7 @@ Are you SURE you want to FORCE CLOSE anyway? (Not recommended)
 
 
 
-            if (!string.Equals(oldVmsUrl, _config.VmsUrl, StringComparison.OrdinalIgnoreCase) &&
+            if (!string.Equals(oldVmsUrl?.Trim(), _config.VmsUrl?.Trim(), StringComparison.Ordinal) &&
 
                 _coreReady && Uri.TryCreate(_config.VmsUrl, UriKind.Absolute, out var newUri))
 

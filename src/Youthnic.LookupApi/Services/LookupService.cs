@@ -43,6 +43,11 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
             }
 
             var parts = seller.Split([',', ';', '|', '+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length == 0)
+            {
+                return DefaultMyntraSellers.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+            }
+
             var isDefault = parts.Any(p => DefaultMyntraSellers.Contains(p, StringComparer.OrdinalIgnoreCase));
             if (isDefault)
             {
@@ -62,7 +67,10 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
             if (!string.IsNullOrWhiteSpace(seller))
             {
                 var parts = seller.Split([',', ';', '|', '+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                return parts.Select(p => p.ToUpperInvariant()).Distinct().OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+                if (parts.Length > 0)
+                {
+                    return parts.Select(p => p.ToUpperInvariant()).Distinct().OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+                }
             }
 
             return DefaultFlipkartSellers;
@@ -71,7 +79,10 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
         if (!string.IsNullOrWhiteSpace(seller))
         {
             var parts = seller.Split([',', ';', '|', '+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Select(p => p.ToUpperInvariant()).Distinct().OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+            if (parts.Length > 0)
+            {
+                return parts.Select(p => p.ToUpperInvariant()).Distinct().OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+            }
         }
 
         return null;
@@ -380,6 +391,8 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
                 }
                 else if (!string.IsNullOrEmpty(baseSku))
                 {
+                    var normBase = NormalizeSku(baseSku);
+                    // 1. Direct base SKU match
                     var baseMatch = found.FirstOrDefault(kvp =>
                         string.Equals(ExtractBaseSku(kvp.Key), baseSku, StringComparison.OrdinalIgnoreCase));
                     if (!string.IsNullOrEmpty(baseMatch.Key))
@@ -387,11 +400,19 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
                         match = baseMatch.Value;
                         hasMatch = true;
                     }
-                    else
+                    else if (normBase.Length >= 4)
                     {
-                        var normBase = NormalizeSku(baseSku);
-                        if (normBase.Length >= 4)
+                        // 2. Normalized full SKU match (in case candidate in photo table has full SKU without suffix)
+                        var fullNormMatch = found.FirstOrDefault(kvp =>
+                            string.Equals(NormalizeSku(kvp.Key), normBase, StringComparison.OrdinalIgnoreCase));
+                        if (!string.IsNullOrEmpty(fullNormMatch.Key))
                         {
+                            match = fullNormMatch.Value;
+                            hasMatch = true;
+                        }
+                        else
+                        {
+                            // 3. Sibling size variant match
                             var normMatch = found.FirstOrDefault(kvp =>
                                 string.Equals(NormalizeSku(ExtractBaseSku(kvp.Key)), normBase, StringComparison.OrdinalIgnoreCase));
                             if (!string.IsNullOrEmpty(normMatch.Key))
@@ -433,17 +454,22 @@ public sealed class LookupService(NpgsqlDataSource dataSource, LookupApiOptions 
         return System.Text.RegularExpressions.Regex.Replace(sku, @"[\s\-_]+", "").ToUpperInvariant();
     }
 
+    /// <summary>
+    /// Extracts the base design SKU by stripping only a recognized size suffix (e.g. "_M", "_2XL", "-XL").
+    /// Underscore-separated product names (e.g. "SHIRT_FLOWER_RAMA") are preserved intact.
+    /// </summary>
     public static string ExtractBaseSku(string sku)
     {
         if (string.IsNullOrWhiteSpace(sku)) return string.Empty;
         var s = sku.Trim();
         var lastUnderscore = s.LastIndexOf('_');
-        if (lastUnderscore > 0)
+        if (lastUnderscore > 0 && lastUnderscore < s.Length - 1)
         {
-            return s[..lastUnderscore].Trim();
+            var suffix = s[(lastUnderscore + 1)..].Trim();
+            if (IsKnownSize(suffix)) return s[..lastUnderscore].Trim();
         }
         var lastHyphen = s.LastIndexOf('-');
-        if (lastHyphen > 0)
+        if (lastHyphen > 0 && lastHyphen < s.Length - 1)
         {
             var suffix = s[(lastHyphen + 1)..].Trim();
             if (IsKnownSize(suffix)) return s[..lastHyphen].Trim();

@@ -77,6 +77,7 @@ public sealed class VmsAutomationService : IDisposable
 
     public AutomationState State { get; private set; } = AutomationState.Starting;
 
+    /// <summary>True when the VMS DOM is in the active packing view ready for AWB scanning.</summary>
     public bool IsPackingActive => State == AutomationState.Packing;
 
     /// <summary>Number of videos currently in the VMS upload queue waiting to finish uploading.</summary>
@@ -97,11 +98,13 @@ public sealed class VmsAutomationService : IDisposable
     /// <summary>Raised on the UI dispatcher for human-readable status/recovery messages.</summary>
     public event Action<string>? StatusChanged;
 
+    /// <summary>Initializes a new instance of <see cref="VmsAutomationService"/>.</summary>
     public VmsAutomationService(Dispatcher dispatcher)
     {
         _dispatcher = dispatcher;
     }
 
+    /// <summary>Starts background automation against the specified WebView2 instance.</summary>
     public void Start(WebView2 webView, Marketplace marketplace, MarketplaceConfig config)
     {
         Stop();
@@ -120,16 +123,23 @@ public sealed class VmsAutomationService : IDisposable
         _ = Task.Run(() => LoopAsync(_loopCts.Token));
     }
 
+    /// <summary>The currently active VMS marketplace configuration.</summary>
     public MarketplaceConfig? CurrentConfig => _config;
 
+    /// <summary>Updates credentials and camera feed ID in-place without restarting background automation.</summary>
     public void UpdateConfig(MarketplaceConfig config)
     {
+        var feedChanged = !string.Equals(_config?.FeedId, config.FeedId, StringComparison.OrdinalIgnoreCase);
         _config = config;
-        _connectClicked = false;
-        _missingDomTicks = 0;
+        if (feedChanged)
+        {
+            _connectClicked = false;
+            _missingDomTicks = 0;
+        }
         AppLog.Info($"VmsAutomation: updated credentials/feed for {_marketplace} (User: {config.Username}, Feed: {config.FeedId})");
     }
 
+    /// <summary>Stops the background DOM automation monitoring loop and resets request counters.</summary>
     public void Stop()
     {
         _loopCts?.Cancel();
@@ -142,6 +152,7 @@ public sealed class VmsAutomationService : IDisposable
         ErrorRequestsCount = 0;
     }
 
+    /// <inheritdoc/>
     public void Dispose() => Stop();
 
     private async Task LoopAsync(CancellationToken ct)

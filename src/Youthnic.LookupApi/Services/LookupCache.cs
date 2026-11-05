@@ -25,6 +25,7 @@ public sealed class LookupCache
     private readonly int _ttlSeconds;
     private readonly Func<DateTimeOffset> _clock;
 
+    /// <summary>Initializes a new instance of <see cref="LookupCache"/>.</summary>
     public LookupCache(IMemoryCache cache, LookupApiOptions options, Func<DateTimeOffset>? clock = null)
     {
         _cache = (MemoryCache)cache;
@@ -32,16 +33,20 @@ public sealed class LookupCache
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
     }
 
+    /// <summary>Builds a composite cache key for marketplace and tracking ID.</summary>
     public static string KeyFor(string marketplace, string trackingId) =>
         $"{marketplace.Trim().ToLowerInvariant()}:{trackingId.Trim().ToUpperInvariant()}";
 
+    /// <summary>Builds a composite cache key for marketplace, tracking ID, and seller filter.</summary>
     public static string KeyFor(string marketplace, string trackingId, string? seller)
         => string.IsNullOrWhiteSpace(seller)
             ? KeyFor(marketplace, trackingId)
             : $"{marketplace.Trim().ToLowerInvariant()}:{trackingId.Trim().ToUpperInvariant()}@{seller.Trim().ToUpperInvariant()}";
 
+    /// <summary>Returns the current number of cached entries.</summary>
     public int Count => _cache.Count;
 
+    /// <summary>Attempts to retrieve a cached lookup response by key.</summary>
     public bool TryGet(string key, out LookupResponse response)
     {
         if (_cache.TryGetValue(key, out Entry? entry) && entry is not null)
@@ -73,6 +78,7 @@ public sealed class LookupCache
         return false;
     }
 
+    /// <summary>Stores a lookup response in the cache with sliding or absolute expiration.</summary>
     public void Set(string key, LookupResponse response, TimeSpan? customTtl = null, bool sliding = true)
     {
         var now = _clock();

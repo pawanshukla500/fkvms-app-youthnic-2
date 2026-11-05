@@ -80,12 +80,14 @@ public partial class PackingWindow : Window
 
     private bool _processFailedDialogOpen;
 
+    /// <summary>True when closing window to return to marketplace selection rather than exiting.</summary>
     public bool IsSwitchingDesk { get; private set; }
 
     private bool _isClosing;
 
 
 
+    /// <summary>Initializes a new instance of <see cref="PackingWindow"/> for active packing.</summary>
     public PackingWindow(Marketplace marketplace, DeskOptions options)
 
     {
@@ -1248,6 +1250,8 @@ Are you SURE you want to FORCE CLOSE anyway? (Not recommended)
 
                 _isClosing = false;
 
+                IsSwitchingDesk = false;
+
                 e.Cancel = true;
 
                 return;
@@ -1281,6 +1285,8 @@ Are you SURE you want to FORCE CLOSE anyway? (Not recommended)
             {
 
                 _isClosing = false;
+
+                IsSwitchingDesk = false;
 
                 e.Cancel = true;
 

@@ -17,6 +17,7 @@ public partial class SelectionWindow : Window
     private string? _downloadedVersion;
     private CancellationTokenSource? _downloadCts;
 
+    /// <summary>Initializes a new instance of <see cref="SelectionWindow"/>.</summary>
     public SelectionWindow()
     {
         InitializeComponent();

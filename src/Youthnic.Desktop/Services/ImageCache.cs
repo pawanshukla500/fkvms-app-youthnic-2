@@ -43,6 +43,7 @@ public sealed class ImageCache
     private long _tick;
     private int _diskWritesSincePrune;
 
+    /// <summary>Initializes an image cache with optional disk cache directory override.</summary>
     public ImageCache(string? diskCacheDir = null)
     {
         _diskCacheDir = diskCacheDir ?? Path.Combine(
@@ -60,6 +61,7 @@ public sealed class ImageCache
         }
     }
 
+    /// <summary>Asynchronously retrieves an image by URL, trying memory LRU cache first, local disk cache second, and remote HTTP download third.</summary>
     public async Task<BitmapImage?> GetAsync(string? url, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(url)) return null;

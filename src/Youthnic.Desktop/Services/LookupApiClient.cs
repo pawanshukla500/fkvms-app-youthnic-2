@@ -20,6 +20,7 @@ public sealed class LookupApiClient : IDisposable
     private HttpClient? _client;
     private string? _clientBaseUrl;
 
+    /// <summary>Request timeout for API calls (defaults to 8.0 seconds).</summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(8.0);
 
     private HttpClient GetClient(string lookupApiUrl)
@@ -42,6 +43,10 @@ public sealed class LookupApiClient : IDisposable
         }
     }
 
+    /// <summary>Queries the remote lookup service for SKU and line item details given a tracking ID.</summary>
+    /// <param name="lookupApiUrl">Base URL of the lookup service endpoint.</param>
+    /// <param name="marketplace">Marketplace identifier (e.g. "flipkart", "myntra").</param>
+    /// <param name="awb">Airway bill / tracking number to lookup.</param>
     /// <param name="seller">
     /// Optional seller-account filter (e.g. "ETHNIC JUNCTION - Flipkart") configured per
     /// marketplace in the setup wizard; disambiguates duplicate tracking IDs across accounts.
@@ -66,11 +71,18 @@ public sealed class LookupApiClient : IDisposable
             response = await client.SendAsync(request, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
         }
-        catch (Exception ex) when (ex is HttpRequestException or TimeoutException or TaskCanceledException && !ct.IsCancellationRequested)
+        catch (Exception ex) when (IsTransient(ex) && !ct.IsCancellationRequested)
         {
+            var delayMs = 250;
+            if (response?.Headers.RetryAfter?.Delta is { } delta && delta > TimeSpan.Zero)
+            {
+                delayMs = Math.Min((int)delta.TotalMilliseconds, 5000);
+            }
+            response?.Dispose();
+            response = null;
             // Fast retry on transient warehouse Wi-Fi glitch / connection reset
-            AppLog.Debug($"LookupApiClient: transient network blip for '{awb}', retrying: {ex.Message}");
-            await Task.Delay(250, ct).ConfigureAwait(false);
+            AppLog.Debug($"LookupApiClient: transient network blip for '{awb}', retrying in {delayMs}ms: {ex.Message}");
+            await Task.Delay(delayMs, ct).ConfigureAwait(false);
             using var retryRequest = BuildRequest(HttpMethod.Get, url, apiKey);
             response = await client.SendAsync(retryRequest, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -116,5 +128,27 @@ public sealed class LookupApiClient : IDisposable
         return trimmed.TrimEnd('/');
     }
 
+    /// <summary>
+    /// Determines whether an exception represents a transient failure eligible for fast retry.
+    /// Retries connection drops, DNS failures, timeouts, HTTP 408 (Request Timeout),
+    /// HTTP 429 (Too Many Requests), and HTTP 5xx server errors.
+    /// Permanent client errors (400, 401, 403, 404) are never retried.
+    /// </summary>
+    private static bool IsTransient(Exception ex)
+    {
+        if (ex is HttpRequestException hex)
+        {
+            if (hex.StatusCode.HasValue)
+            {
+                var code = (int)hex.StatusCode.Value;
+                return code == 408 || code == 429 || code >= 500;
+            }
+            // Network failures, DNS errors, socket resets have no status code -> transient
+            return true;
+        }
+        return ex is TimeoutException or TaskCanceledException;
+    }
+
+    /// <inheritdoc/>
     public void Dispose() => _client?.Dispose();
 }

@@ -11,6 +11,8 @@ public class SkuTitleAndSizeEnrichmentTests
     [InlineData("SKD237-Juhi-Red-XL", "SKD237-Juhi-Red")]
     [InlineData("SKD237-Juhi-Red-FREE", "SKD237-Juhi-Red")]
     [InlineData("PLAINSKU", "PLAINSKU")]
+    [InlineData("T95_Box_Shirt_flower_rama", "T95_Box_Shirt_flower_rama")]
+    [InlineData("T95_Box_Shirt_flower_rama_S", "T95_Box_Shirt_flower_rama")]
     [InlineData("", "")]
     public void ExtractBaseSku_ExtractsBaseDesignCorrectly(string sku, string expected)
     {
@@ -24,6 +26,8 @@ public class SkuTitleAndSizeEnrichmentTests
     [InlineData("SKD237-Juhi-Red-XL", "XL")]
     [InlineData("SKD237-Juhi-Red-FREE", "FREE")]
     [InlineData("SKD237-Juhi-Red-FS", "FS")]
+    [InlineData("ABC_BLUE_FREE SIZE", "FREE SIZE")]
+    [InlineData("ABC_BLUE_FREESIZE", "FREESIZE")]
     [InlineData("PLAINSKU", null)]
     public void ExtractSize_DetectsKnownSizes(string sku, string? expected)
     {

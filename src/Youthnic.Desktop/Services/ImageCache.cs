@@ -43,6 +43,7 @@ public sealed class ImageCache
     private long _tick;
     private int _diskWritesSincePrune;
 
+    /// <summary>Initializes an image cache with optional disk cache directory override.</summary>
     public ImageCache(string? diskCacheDir = null)
     {
         _diskCacheDir = diskCacheDir ?? Path.Combine(
@@ -60,6 +61,7 @@ public sealed class ImageCache
         }
     }
 
+    /// <summary>Asynchronously retrieves an image by URL, trying memory LRU cache first, local disk cache second, and remote HTTP download third.</summary>
     public async Task<BitmapImage?> GetAsync(string? url, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
@@ -168,11 +170,13 @@ public sealed class ImageCache
 
     private async Task SaveToDiskAsync(string path, byte[] bytes)
     {
+        string? tempPath = null;
         try
         {
-            var tempPath = path + ".tmp." + Guid.NewGuid().ToString("N");
+            tempPath = path + ".tmp." + Guid.NewGuid().ToString("N");
             await File.WriteAllBytesAsync(tempPath, bytes).ConfigureAwait(false);
             File.Move(tempPath, path, overwrite: true);
+            tempPath = null;
 
             // Periodically verify disk cache bounds every 50 new images written during continuous shifts
             if (Interlocked.Increment(ref _diskWritesSincePrune) >= 50)
@@ -185,6 +189,13 @@ public sealed class ImageCache
         {
             AppLog.Debug($"ImageCache: disk write failed: {ex.Message}");
         }
+        finally
+        {
+            if (tempPath != null)
+            {
+                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+            }
+        }
     }
 
     private void PruneExpiredFailedEntries()
@@ -195,6 +206,14 @@ public sealed class ImageCache
         foreach (var key in expired)
         {
             _failed.Remove(key);
+        }
+        if (_failed.Count > 500)
+        {
+            var excess = _failed.OrderBy(kvp => kvp.Value).Take(_failed.Count - 500).Select(kvp => kvp.Key).ToList();
+            foreach (var key in excess)
+            {
+                _failed.Remove(key);
+            }
         }
     }
 

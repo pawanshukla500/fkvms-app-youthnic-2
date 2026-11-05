@@ -29,6 +29,31 @@ public class MyntraDualAccountLookupTests
         var sellers = LookupService.ResolveSellerFilters("myntra", inputSeller);
 
         Assert.NotNull(sellers);
+        Assert.Equal(2, sellers.Length);
+        Assert.Contains("ETHNIC JUNCTION - MYNTRA YOUTHNIC", sellers);
+        Assert.Contains("VB EXPORT - MYNTRA PPMP", sellers);
+    }
+
+    [Fact]
+    public void Myntra_WhenCustomAccountPassed_DoesNotIncludeDefaultAccounts()
+    {
+        var sellers = LookupService.ResolveSellerFilters("myntra", "CUSTOM_SELLER_CORP");
+
+        Assert.NotNull(sellers);
+        Assert.Single(sellers);
+        Assert.Equal("CUSTOM_SELLER_CORP", sellers[0]);
+    }
+
+    [Theory]
+    [InlineData(",")]
+    [InlineData("; ")]
+    [InlineData(", + ; | ")]
+    public void Myntra_WhenSeparatorOnlyPassed_DefaultsToStandardAccounts(string inputSeller)
+    {
+        var sellers = LookupService.ResolveSellerFilters("myntra", inputSeller);
+
+        Assert.NotNull(sellers);
+        Assert.Equal(2, sellers.Length);
         Assert.Contains("ETHNIC JUNCTION - MYNTRA YOUTHNIC", sellers);
         Assert.Contains("VB EXPORT - MYNTRA PPMP", sellers);
     }
@@ -37,6 +62,18 @@ public class MyntraDualAccountLookupTests
     public void Flipkart_WhenSellerIsNull_DefaultsToEthnicJunctionFlipkart()
     {
         var sellers = LookupService.ResolveSellerFilters("flipkart", null);
+
+        Assert.NotNull(sellers);
+        Assert.Single(sellers);
+        Assert.Equal("ETHNIC JUNCTION - FLIPKART", sellers[0]);
+    }
+
+    [Theory]
+    [InlineData(",")]
+    [InlineData("; ")]
+    public void Flipkart_WhenSeparatorOnlyPassed_DefaultsToEthnicJunctionFlipkart(string inputSeller)
+    {
+        var sellers = LookupService.ResolveSellerFilters("flipkart", inputSeller);
 
         Assert.NotNull(sellers);
         Assert.Single(sellers);

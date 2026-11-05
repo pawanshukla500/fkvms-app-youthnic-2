@@ -210,7 +210,7 @@ app.MapGet("/api/track", async Task<IResult> (
         foreach (var entry in ipRateLimits)
         {
             if (entry.Value.reset < now)
-                ipRateLimits.TryRemove(entry.Key, out _);
+                ((ICollection<KeyValuePair<string, (int count, DateTime reset)>>)ipRateLimits).Remove(entry);
         }
     }
 

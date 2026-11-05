@@ -246,7 +246,13 @@ public class VmsAutomationAndScriptTests
 
         service.UpdateConfig(updated);
 
-        // Method should execute cleanly and update internal config without throwing
+        // Method should execute cleanly and update internal config
+
+        Assert.NotNull(service.CurrentConfig);
+
+        Assert.Equal("feed2", service.CurrentConfig.FeedId);
+
+        Assert.Equal("user2", service.CurrentConfig.Username);
 
         Assert.Equal(AutomationState.Starting, service.State);
 
